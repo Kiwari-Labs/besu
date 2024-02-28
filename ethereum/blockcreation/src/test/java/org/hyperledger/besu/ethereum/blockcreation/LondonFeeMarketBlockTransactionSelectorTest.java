@@ -16,7 +16,7 @@ package org.hyperledger.besu.ethereum.blockcreation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
-import static org.hyperledger.besu.ethereum.core.MiningParameters.Unstable.DEFAULT_NON_POA_BLOCK_TXS_SELECTION_MAX_TIME;
+import static org.hyperledger.besu.ethereum.core.MiningParameters.DEFAULT_NON_POA_BLOCK_TXS_SELECTION_MAX_TIME;
 import static org.mockito.Mockito.mock;
 
 import org.hyperledger.besu.config.GenesisConfigFile;
@@ -24,6 +24,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.blockcreation.txselection.BlockTransactionSelector;
 import org.hyperledger.besu.ethereum.blockcreation.txselection.TransactionSelectionResults;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.core.AddressHelpers;
 import org.hyperledger.besu.ethereum.core.ImmutableMiningParameters;
 import org.hyperledger.besu.ethereum.core.MiningParameters;
@@ -69,7 +70,8 @@ public class LondonFeeMarketBlockTransactionSelectorTest
             ProtocolSpecAdapters.create(0, Function.identity()),
             new PrivacyParameters(),
             false,
-            EvmConfiguration.DEFAULT)
+            EvmConfiguration.DEFAULT,
+            new BadBlockManager())
         .createProtocolSchedule();
   }
 

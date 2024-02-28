@@ -26,6 +26,7 @@ import org.hyperledger.besu.config.StubGenesisConfigOptions;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.BlockProcessingOutputs;
 import org.hyperledger.besu.ethereum.BlockProcessingResult;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockDataGenerator;
@@ -38,7 +39,7 @@ import org.hyperledger.besu.ethereum.eth.manager.RespondingEthPeer;
 import org.hyperledger.besu.ethereum.mainnet.MainnetBlockHeaderFunctions;
 import org.hyperledger.besu.ethereum.mainnet.MainnetProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
-import org.hyperledger.besu.ethereum.referencetests.DefaultReferenceTestWorldState;
+import org.hyperledger.besu.ethereum.referencetests.ForestReferenceTestWorldState;
 import org.hyperledger.besu.services.kvstore.InMemoryKeyValueStorage;
 
 import java.nio.charset.StandardCharsets;
@@ -73,7 +74,7 @@ public class ForwardSyncStepTest {
   private RespondingEthPeer peer;
 
   private final ProtocolSchedule protocolSchedule =
-      MainnetProtocolSchedule.fromConfig(new StubGenesisConfigOptions());
+      MainnetProtocolSchedule.fromConfig(new StubGenesisConfigOptions(), new BadBlockManager());
   private MutableBlockchain localBlockchain;
   GenericKeyValueStorageFacade<Hash, BlockHeader> headersStorage;
   GenericKeyValueStorageFacade<Hash, Block> blocksStorage;
@@ -138,7 +139,7 @@ public class ForwardSyncStepTest {
               return new BlockProcessingResult(
                   Optional.of(
                       new BlockProcessingOutputs(
-                          DefaultReferenceTestWorldState.create(Collections.emptyMap()),
+                          ForestReferenceTestWorldState.create(Collections.emptyMap()),
                           blockDataGenerator.receipts(block))));
             });
   }

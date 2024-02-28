@@ -19,7 +19,6 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.util.Lists.list;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 
 import org.hyperledger.besu.config.StubGenesisConfigOptions;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -36,6 +35,7 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.methods.JsonRpcMethodsFactory;
 import org.hyperledger.besu.ethereum.api.jsonrpc.websocket.WebSocketConfiguration;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.blockcreation.PoWMiningCoordinator;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.core.MiningParameters;
 import org.hyperledger.besu.ethereum.core.PrivacyParameters;
 import org.hyperledger.besu.ethereum.core.Synchronizer;
@@ -129,37 +129,36 @@ public class JsonRpcHttpServiceLoginTest {
         new StubGenesisConfigOptions().constantinopleBlock(0).chainId(CHAIN_ID);
 
     rpcMethods =
-        spy(
-            new JsonRpcMethodsFactory()
-                .methods(
-                    CLIENT_VERSION,
-                    CHAIN_ID,
-                    genesisConfigOptions,
-                    peerDiscoveryMock,
-                    blockchainQueries,
-                    synchronizer,
-                    MainnetProtocolSchedule.fromConfig(genesisConfigOptions),
-                    mock(ProtocolContext.class),
-                    mock(FilterManager.class),
-                    mock(TransactionPool.class),
-                    mock(MiningParameters.class),
-                    mock(PoWMiningCoordinator.class),
-                    new NoOpMetricsSystem(),
-                    supportedCapabilities,
-                    Optional.empty(),
-                    Optional.empty(),
-                    JSON_RPC_APIS,
-                    mock(PrivacyParameters.class),
-                    mock(JsonRpcConfiguration.class),
-                    mock(WebSocketConfiguration.class),
-                    mock(MetricsConfiguration.class),
-                    natService,
-                    new HashMap<>(),
-                    folder,
-                    mock(EthPeers.class),
-                    vertx,
-                    mock(ApiConfiguration.class),
-                    Optional.empty()));
+        new JsonRpcMethodsFactory()
+            .methods(
+                CLIENT_VERSION,
+                CHAIN_ID,
+                genesisConfigOptions,
+                peerDiscoveryMock,
+                blockchainQueries,
+                synchronizer,
+                MainnetProtocolSchedule.fromConfig(genesisConfigOptions, new BadBlockManager()),
+                mock(ProtocolContext.class),
+                mock(FilterManager.class),
+                mock(TransactionPool.class),
+                mock(MiningParameters.class),
+                mock(PoWMiningCoordinator.class),
+                new NoOpMetricsSystem(),
+                supportedCapabilities,
+                Optional.empty(),
+                Optional.empty(),
+                JSON_RPC_APIS,
+                mock(PrivacyParameters.class),
+                mock(JsonRpcConfiguration.class),
+                mock(WebSocketConfiguration.class),
+                mock(MetricsConfiguration.class),
+                natService,
+                new HashMap<>(),
+                folder,
+                mock(EthPeers.class),
+                vertx,
+                mock(ApiConfiguration.class),
+                Optional.empty());
     service = createJsonRpcHttpService();
     jwtAuth = service.authenticationService.get().getJwtAuthProvider();
     service.start().join();

@@ -28,11 +28,10 @@ import org.hyperledger.besu.ethereum.storage.keyvalue.WorldStatePreimageKeyValue
 import org.hyperledger.besu.ethereum.trie.bonsai.BonsaiWorldStateProvider;
 import org.hyperledger.besu.ethereum.trie.bonsai.cache.CachedMerkleTrieLoader;
 import org.hyperledger.besu.ethereum.trie.bonsai.storage.BonsaiWorldStateKeyValueStorage;
-import org.hyperledger.besu.ethereum.trie.bonsai.trielog.TrieLogPruner;
 import org.hyperledger.besu.ethereum.trie.forest.ForestWorldStateArchive;
 import org.hyperledger.besu.ethereum.trie.forest.storage.ForestWorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.trie.forest.worldview.ForestMutableWorldState;
-import org.hyperledger.besu.ethereum.worldstate.DataStorageFormat;
+import org.hyperledger.besu.ethereum.worldstate.DataStorageConfiguration;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.services.kvstore.InMemoryKeyValueStorage;
@@ -98,20 +97,19 @@ public class InMemoryKeyValueStorageProvider extends KeyValueStorageProvider {
         new CachedMerkleTrieLoader(new NoOpMetricsSystem());
     return new BonsaiWorldStateProvider(
         (BonsaiWorldStateKeyValueStorage)
-            inMemoryKeyValueStorageProvider.createWorldStateStorage(DataStorageFormat.BONSAI),
+            inMemoryKeyValueStorageProvider.createWorldStateStorage(
+                DataStorageConfiguration.DEFAULT_BONSAI_CONFIG),
         blockchain,
         Optional.empty(),
         cachedMerkleTrieLoader,
-        new NoOpMetricsSystem(),
         null,
-        evmConfiguration,
-        TrieLogPruner.noOpTrieLogPruner());
+        evmConfiguration);
   }
 
   public static MutableWorldState createInMemoryWorldState() {
     final InMemoryKeyValueStorageProvider provider = new InMemoryKeyValueStorageProvider();
     return new ForestMutableWorldState(
-        provider.createWorldStateStorage(DataStorageFormat.FOREST),
+        provider.createWorldStateStorage(DataStorageConfiguration.DEFAULT_FOREST_CONFIG),
         provider.createWorldStatePreimageStorage(),
         EvmConfiguration.DEFAULT);
   }

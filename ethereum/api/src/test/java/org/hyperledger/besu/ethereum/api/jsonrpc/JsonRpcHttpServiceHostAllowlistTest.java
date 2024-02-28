@@ -17,7 +17,6 @@ package org.hyperledger.besu.ethereum.api.jsonrpc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.RpcApis.DEFAULT_RPC_APIS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 
 import org.hyperledger.besu.config.StubGenesisConfigOptions;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -29,6 +28,7 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.methods.JsonRpcMethodsFactory;
 import org.hyperledger.besu.ethereum.api.jsonrpc.websocket.WebSocketConfiguration;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.blockcreation.PoWMiningCoordinator;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.core.MiningParameters;
 import org.hyperledger.besu.ethereum.core.PrivacyParameters;
 import org.hyperledger.besu.ethereum.core.Synchronizer;
@@ -98,38 +98,38 @@ public class JsonRpcHttpServiceHostAllowlistTest {
     supportedCapabilities.add(EthProtocol.ETH63);
 
     rpcMethods =
-        spy(
-            new JsonRpcMethodsFactory()
-                .methods(
-                    CLIENT_VERSION,
-                    CHAIN_ID,
-                    new StubGenesisConfigOptions(),
-                    peerDiscoveryMock,
-                    blockchainQueries,
-                    synchronizer,
-                    MainnetProtocolSchedule.fromConfig(
-                        new StubGenesisConfigOptions().constantinopleBlock(0).chainId(CHAIN_ID)),
-                    mock(ProtocolContext.class),
-                    mock(FilterManager.class),
-                    mock(TransactionPool.class),
-                    mock(MiningParameters.class),
-                    mock(PoWMiningCoordinator.class),
-                    new NoOpMetricsSystem(),
-                    supportedCapabilities,
-                    Optional.of(mock(AccountLocalConfigPermissioningController.class)),
-                    Optional.of(mock(NodeLocalConfigPermissioningController.class)),
-                    DEFAULT_RPC_APIS,
-                    mock(PrivacyParameters.class),
-                    mock(JsonRpcConfiguration.class),
-                    mock(WebSocketConfiguration.class),
-                    mock(MetricsConfiguration.class),
-                    natService,
-                    new HashMap<>(),
-                    folder,
-                    mock(EthPeers.class),
-                    vertx,
-                    mock(ApiConfiguration.class),
-                    Optional.empty()));
+        new JsonRpcMethodsFactory()
+            .methods(
+                CLIENT_VERSION,
+                CHAIN_ID,
+                new StubGenesisConfigOptions(),
+                peerDiscoveryMock,
+                blockchainQueries,
+                synchronizer,
+                MainnetProtocolSchedule.fromConfig(
+                    new StubGenesisConfigOptions().constantinopleBlock(0).chainId(CHAIN_ID),
+                    new BadBlockManager()),
+                mock(ProtocolContext.class),
+                mock(FilterManager.class),
+                mock(TransactionPool.class),
+                mock(MiningParameters.class),
+                mock(PoWMiningCoordinator.class),
+                new NoOpMetricsSystem(),
+                supportedCapabilities,
+                Optional.of(mock(AccountLocalConfigPermissioningController.class)),
+                Optional.of(mock(NodeLocalConfigPermissioningController.class)),
+                DEFAULT_RPC_APIS,
+                mock(PrivacyParameters.class),
+                mock(JsonRpcConfiguration.class),
+                mock(WebSocketConfiguration.class),
+                mock(MetricsConfiguration.class),
+                natService,
+                new HashMap<>(),
+                folder,
+                mock(EthPeers.class),
+                vertx,
+                mock(ApiConfiguration.class),
+                Optional.empty());
     service = createJsonRpcHttpService();
     service.start().join();
 

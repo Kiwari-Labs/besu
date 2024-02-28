@@ -32,7 +32,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -51,6 +50,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.TransactionType;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.BlobTestFixture;
 import org.hyperledger.besu.ethereum.core.Block;
@@ -100,7 +100,6 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -193,7 +192,8 @@ public abstract class AbstractTransactionPoolTest {
                 ProtocolSpecAdapters.create(0, Function.identity()),
                 new PrivacyParameters(),
                 false,
-                EvmConfiguration.DEFAULT)
+                EvmConfiguration.DEFAULT,
+                new BadBlockManager())
             .createProtocolSchedule();
     final ExecutionContextTestFixture executionContextTestFixture =
         ExecutionContextTestFixture.builder().protocolSchedule(protocolSchedule).build();
@@ -233,12 +233,9 @@ public abstract class AbstractTransactionPoolTest {
     ethProtocolManager = EthProtocolManagerTestUtil.create();
     ethContext = spy(ethProtocolManager.ethContext());
 
-    final EthScheduler ethScheduler = mock(EthScheduler.class);
+    final EthScheduler ethScheduler = spy(ethContext.getScheduler());
     syncTaskCapture = ArgumentCaptor.forClass(Runnable.class);
     doNothing().when(ethScheduler).scheduleSyncWorkerTask(syncTaskCapture.capture());
-    doAnswer(invocation -> ((Supplier<Void>) invocation.getArguments()[0]).get())
-        .when(ethScheduler)
-        .scheduleServiceTask(any(Supplier.class));
     doReturn(ethScheduler).when(ethContext).getScheduler();
 
     peerTransactionTracker = new PeerTransactionTracker();
@@ -556,11 +553,11 @@ public abstract class AbstractTransactionPoolTest {
     assertTransactionNotPending(transaction1);
     verify(transactionBroadcaster).onTransactionsAdded(singletonList(transaction0));
     verify(transactionValidatorFactory.get())
-        .validate(eq(transaction0), any(Optional.class), any());
+        .validate(eq(transaction0), any(Optional.class), any(Optional.class), any());
     verify(transactionValidatorFactory.get())
         .validateForSender(eq(transaction0), eq(null), any(TransactionValidationParams.class));
     verify(transactionValidatorFactory.get())
-        .validate(eq(transaction1), any(Optional.class), any());
+        .validate(eq(transaction1), any(Optional.class), any(Optional.class), any());
     verify(transactionValidatorFactory.get()).validateForSender(eq(transaction1), any(), any());
     verifyNoMoreInteractions(transactionValidatorFactory.get());
   }
@@ -731,7 +728,9 @@ public abstract class AbstractTransactionPoolTest {
     final ArgumentCaptor<TransactionValidationParams> txValidationParamCaptor =
         ArgumentCaptor.forClass(TransactionValidationParams.class);
 
-    when(transactionValidatorFactory.get().validate(eq(transaction0), any(Optional.class), any()))
+    when(transactionValidatorFactory
+            .get()
+            .validate(eq(transaction0), any(Optional.class), any(Optional.class), any()))
         .thenReturn(valid());
     when(transactionValidatorFactory
             .get()
@@ -1350,7 +1349,9 @@ public abstract class AbstractTransactionPoolTest {
 
   @SuppressWarnings("unchecked")
   protected void givenTransactionIsValid(final Transaction transaction) {
-    when(transactionValidatorFactory.get().validate(eq(transaction), any(Optional.class), any()))
+    when(transactionValidatorFactory
+            .get()
+            .validate(eq(transaction), any(Optional.class), any(Optional.class), any()))
         .thenReturn(valid());
     when(transactionValidatorFactory
             .get()

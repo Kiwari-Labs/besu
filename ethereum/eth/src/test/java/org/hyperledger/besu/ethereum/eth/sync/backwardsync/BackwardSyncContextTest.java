@@ -34,6 +34,7 @@ import org.hyperledger.besu.ethereum.BlockProcessingOutputs;
 import org.hyperledger.besu.ethereum.BlockProcessingResult;
 import org.hyperledger.besu.ethereum.BlockValidator;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockDataGenerator;
@@ -48,7 +49,7 @@ import org.hyperledger.besu.ethereum.mainnet.MainnetBlockHeaderFunctions;
 import org.hyperledger.besu.ethereum.mainnet.MainnetProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
-import org.hyperledger.besu.ethereum.referencetests.DefaultReferenceTestWorldState;
+import org.hyperledger.besu.ethereum.referencetests.ForestReferenceTestWorldState;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.services.kvstore.InMemoryKeyValueStorage;
 
@@ -93,7 +94,7 @@ public class BackwardSyncContextTest {
 
   @Spy
   private ProtocolSchedule protocolSchedule =
-      MainnetProtocolSchedule.fromConfig(new StubGenesisConfigOptions());
+      MainnetProtocolSchedule.fromConfig(new StubGenesisConfigOptions(), new BadBlockManager());
 
   @Spy
   private ProtocolSpec protocolSpec =
@@ -154,7 +155,7 @@ public class BackwardSyncContextTest {
                       new BlockProcessingOutputs(
                           // use forest-based worldstate since it does not require
                           // blockheader stateroot to match actual worldstate root
-                          DefaultReferenceTestWorldState.create(Collections.emptyMap()),
+                          ForestReferenceTestWorldState.create(Collections.emptyMap()),
                           blockDataGenerator.receipts(block))));
             });
 

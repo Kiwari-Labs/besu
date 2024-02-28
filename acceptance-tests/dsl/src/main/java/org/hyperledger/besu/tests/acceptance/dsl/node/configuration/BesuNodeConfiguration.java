@@ -22,9 +22,11 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.ipc.JsonRpcIpcConfiguration;
 import org.hyperledger.besu.ethereum.api.jsonrpc.websocket.WebSocketConfiguration;
 import org.hyperledger.besu.ethereum.core.MiningParameters;
 import org.hyperledger.besu.ethereum.core.PrivacyParameters;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration;
 import org.hyperledger.besu.ethereum.p2p.config.NetworkingConfiguration;
 import org.hyperledger.besu.ethereum.p2p.rlpx.connections.netty.TLSConfiguration;
 import org.hyperledger.besu.ethereum.permissioning.PermissioningConfiguration;
+import org.hyperledger.besu.ethereum.worldstate.DataStorageConfiguration;
 import org.hyperledger.besu.metrics.prometheus.MetricsConfiguration;
 import org.hyperledger.besu.pki.config.PkiKeyStoreConfiguration;
 import org.hyperledger.besu.tests.acceptance.dsl.node.configuration.genesis.GenesisConfigurationProvider;
@@ -39,6 +41,7 @@ public class BesuNodeConfiguration {
   private final String name;
   private final Optional<Path> dataPath;
   private final MiningParameters miningParameters;
+  private final TransactionPoolConfiguration transactionPoolConfiguration;
   private final JsonRpcConfiguration jsonRpcConfiguration;
   private final Optional<JsonRpcConfiguration> engineRpcConfiguration;
   private final WebSocketConfiguration webSocketConfiguration;
@@ -46,6 +49,7 @@ public class BesuNodeConfiguration {
   private final MetricsConfiguration metricsConfiguration;
   private final Optional<PermissioningConfiguration> permissioningConfiguration;
   private final ApiConfiguration apiConfiguration;
+  private final DataStorageConfiguration dataStorageConfiguration;
   private final Optional<String> keyFilePath;
   private final boolean devMode;
   private final GenesisConfigurationProvider genesisConfigProvider;
@@ -74,6 +78,7 @@ public class BesuNodeConfiguration {
       final String name,
       final Optional<Path> dataPath,
       final MiningParameters miningParameters,
+      final TransactionPoolConfiguration transactionPoolConfiguration,
       final JsonRpcConfiguration jsonRpcConfiguration,
       final Optional<JsonRpcConfiguration> engineRpcConfiguration,
       final WebSocketConfiguration webSocketConfiguration,
@@ -81,6 +86,7 @@ public class BesuNodeConfiguration {
       final MetricsConfiguration metricsConfiguration,
       final Optional<PermissioningConfiguration> permissioningConfiguration,
       final ApiConfiguration apiConfiguration,
+      final DataStorageConfiguration dataStorageConfiguration,
       final Optional<String> keyFilePath,
       final boolean devMode,
       final NetworkName network,
@@ -106,6 +112,7 @@ public class BesuNodeConfiguration {
       final Map<String, String> environment) {
     this.name = name;
     this.miningParameters = miningParameters;
+    this.transactionPoolConfiguration = transactionPoolConfiguration;
     this.jsonRpcConfiguration = jsonRpcConfiguration;
     this.engineRpcConfiguration = engineRpcConfiguration;
     this.webSocketConfiguration = webSocketConfiguration;
@@ -113,6 +120,7 @@ public class BesuNodeConfiguration {
     this.metricsConfiguration = metricsConfiguration;
     this.permissioningConfiguration = permissioningConfiguration;
     this.apiConfiguration = apiConfiguration;
+    this.dataStorageConfiguration = dataStorageConfiguration;
     this.keyFilePath = keyFilePath;
     this.dataPath = dataPath;
     this.devMode = devMode;
@@ -147,6 +155,10 @@ public class BesuNodeConfiguration {
     return miningParameters;
   }
 
+  public TransactionPoolConfiguration getTransactionPoolConfiguration() {
+    return transactionPoolConfiguration;
+  }
+
   public JsonRpcConfiguration getJsonRpcConfiguration() {
     return jsonRpcConfiguration;
   }
@@ -173,6 +185,10 @@ public class BesuNodeConfiguration {
 
   public ApiConfiguration getApiConfiguration() {
     return apiConfiguration;
+  }
+
+  public DataStorageConfiguration getDataStorageConfiguration() {
+    return dataStorageConfiguration;
   }
 
   public Optional<String> getKeyFilePath() {

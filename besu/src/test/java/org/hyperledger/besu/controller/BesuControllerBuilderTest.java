@@ -131,7 +131,8 @@ public class BesuControllerBuilderTest {
     when(synchronizerConfiguration.getBlockPropagationRange()).thenReturn(Range.closed(1L, 2L));
 
     lenient()
-        .when(storageProvider.createWorldStateStorage(DataStorageFormat.FOREST))
+        .when(
+            storageProvider.createWorldStateStorage(DataStorageConfiguration.DEFAULT_FOREST_CONFIG))
         .thenReturn(worldStateStorage);
     lenient()
         .when(storageProvider.createWorldStatePreimageStorage())
@@ -173,15 +174,11 @@ public class BesuControllerBuilderTest {
             any(WorldStateStorage.class), any(Blockchain.class), any(CachedMerkleTrieLoader.class));
     doReturn(mockWorldState).when(worldStateArchive).getMutable();
 
-    when(storageProvider.createWorldStateStorage(DataStorageFormat.BONSAI))
+    when(storageProvider.createWorldStateStorage(DataStorageConfiguration.DEFAULT_BONSAI_CONFIG))
         .thenReturn(bonsaiWorldStateStorage);
     besuControllerBuilder
         .isPruningEnabled(true)
-        .dataStorageConfiguration(
-            ImmutableDataStorageConfiguration.builder()
-                .dataStorageFormat(DataStorageFormat.BONSAI)
-                .bonsaiMaxLayersToLoad(DataStorageConfiguration.DEFAULT_BONSAI_MAX_LAYERS_TO_LOAD)
-                .build());
+        .dataStorageConfiguration(DataStorageConfiguration.DEFAULT_BONSAI_CONFIG);
     besuControllerBuilder.build();
 
     verify(storageProvider, never())
