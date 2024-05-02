@@ -1,6 +1,31 @@
 # Changelog
 
-## 24.2.0-SNAPSHOT
+## 24.3.3
+
+### Breaking Changes
+
+### Upcoming Breaking Changes
+
+### Deprecations
+
+### Additions and Improvements
+- Upgrade Reference Tests to 13.2 [#6854](https://github.com/hyperledger/besu/pull/6854)
+- Add holesky DNS server [#6824](https://github.com/hyperledger/besu/pull/6824) [#6867](https://github.com/hyperledger/besu/pull/6867)
+
+### Bug fixes
+- Fix to avoid broadcasting full blob txs, instead of only the tx announcement, to a subset of nodes [#6835](https://github.com/hyperledger/besu/pull/6835)
+
+### Download Links
+
+## 24.3.2
+
+- Was not released due to CI bug
+
+## 24.3.1
+
+- Was not released due to CI bug
+
+## 24.3.0
 
 ### Breaking Changes
 - SNAP - Snap sync is now the default for named networks [#6530](https://github.com/hyperledger/besu/pull/6530)
@@ -15,10 +40,11 @@
 - `--Xfilter-on-enr-fork-id` has been removed. To disable the feature use `--filter-on-enr-fork-id=false`.
 - `--engine-jwt-enabled` has been removed. Use `--engine-jwt-disabled` instead. [#6491](https://github.com/hyperledger/besu/pull/6491)
 - Release docker images now provided at ghcr.io instead of dockerhub
+- Add blob transaction support to `eth_call` [#6661](https://github.com/hyperledger/besu/pull/6661)
+- Add blobs to `eth_feeHistory` [#6679](https://github.com/hyperledger/besu/pull/6679)
 
 ### Deprecations
 - X_SNAP and X_CHECKPOINT are marked for deprecation and will be removed in 24.4.0 in favor of SNAP and CHECKPOINT [#6405](https://github.com/hyperledger/besu/pull/6405)
-- `--Xsnapsync-synchronizer-flat-db-healing-enabled` is deprecated (always enabled). [#6499](https://github.com/hyperledger/besu/pull/6499)
 - `--Xp2p-peer-lower-bound` is deprecated. [#6501](https://github.com/hyperledger/besu/pull/6501)
 
 ### Upcoming Breaking Changes
