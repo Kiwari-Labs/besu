@@ -16,6 +16,8 @@
 
 package org.hyperledger.besu.ethereum.worldstate;
 
+import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
+
 import org.immutables.value.Value;
 
 @Value.Immutable
@@ -23,6 +25,7 @@ import org.immutables.value.Value;
 public interface DataStorageConfiguration {
 
   long DEFAULT_BONSAI_MAX_LAYERS_TO_LOAD = 512;
+  boolean DEFAULT_RECEIPT_COMPACTION_ENABLED = false;
 
   DataStorageConfiguration DEFAULT_CONFIG =
       ImmutableDataStorageConfiguration.builder()
@@ -47,6 +50,11 @@ public interface DataStorageConfiguration {
   DataStorageFormat getDataStorageFormat();
 
   Long getBonsaiMaxLayersToLoad();
+
+  @Value.Default
+  default boolean getReceiptCompactionEnabled() {
+    return DEFAULT_RECEIPT_COMPACTION_ENABLED;
+  }
 
   @Value.Default
   default Unstable getUnstable() {

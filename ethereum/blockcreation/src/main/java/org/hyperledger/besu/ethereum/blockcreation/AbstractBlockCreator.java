@@ -24,7 +24,6 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.txselection.BlockTransactionSelector;
 import org.hyperledger.besu.ethereum.blockcreation.txselection.TransactionSelectionResults;
-import org.hyperledger.besu.ethereum.blockcreation.txselection.selectors.AllAcceptingTransactionSelector;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockBody;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
@@ -60,7 +59,6 @@ import org.hyperledger.besu.plugin.services.exception.StorageException;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.hyperledger.besu.plugin.services.tracer.BlockAwareOperationTracer;
 import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelector;
-import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelectorFactory;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -161,6 +159,26 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
         true);
   }
 
+  @Override
+  public BlockCreationResult createEmptyWithdrawalsBlock(final long timestamp) {
+    throw new UnsupportedOperationException("Only used by BFT block creators");
+  }
+
+  public BlockCreationResult createBlock(
+      final Optional<List<Transaction>> maybeTransactions,
+      final Optional<List<BlockHeader>> maybeOmmers,
+      final Optional<List<Withdrawal>> maybeWithdrawals,
+      final long timestamp) {
+    return createBlock(
+        maybeTransactions,
+        maybeOmmers,
+        maybeWithdrawals,
+        Optional.empty(),
+        Optional.empty(),
+        timestamp,
+        true);
+  }
+
   protected BlockCreationResult createBlock(
       final Optional<List<Transaction>> maybeTransactions,
       final Optional<List<BlockHeader>> maybeOmmers,
@@ -192,10 +210,7 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
       throwIfStopped();
 
       final PluginTransactionSelector pluginTransactionSelector =
-          protocolContext
-              .getTransactionSelectorFactory()
-              .map(PluginTransactionSelectorFactory::create)
-              .orElseGet(() -> AllAcceptingTransactionSelector.INSTANCE);
+          miningParameters.getTransactionSelectionService().createPluginTransactionSelector();
 
       final BlockAwareOperationTracer operationTracer =
           pluginTransactionSelector.getOperationTracer();

@@ -524,8 +524,7 @@ public class JsonRpcHttpService {
 
   private boolean hostIsInAllowlist(final String hostHeader) {
     if (config.getHostsAllowlist().stream()
-        .anyMatch(
-            allowlistEntry -> allowlistEntry.toLowerCase().equals(hostHeader.toLowerCase()))) {
+        .anyMatch(allowlistEntry -> allowlistEntry.equalsIgnoreCase(hostHeader))) {
       return true;
     } else {
       LOG.trace("Host not in allowlist: '{}'", hostHeader);
@@ -580,7 +579,7 @@ public class JsonRpcHttpService {
       return "";
     }
     if (config.getCorsAllowedDomains().contains("*")) {
-      return ".*";
+      return ".*://.*";
     } else {
       final StringJoiner stringJoiner = new StringJoiner("|");
       config.getCorsAllowedDomains().stream().filter(s -> !s.isEmpty()).forEach(stringJoiner::add);

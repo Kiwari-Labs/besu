@@ -115,7 +115,8 @@ public class WebSocketService {
                     .setCompressionSupported(true)
                     .addWebSocketSubProtocol("undefined")
                     .setMaxWebSocketFrameSize(configuration.getMaxFrameSize())
-                    .setMaxWebSocketMessageSize(configuration.getMaxFrameSize() * 4))
+                    .setMaxWebSocketMessageSize(configuration.getMaxFrameSize() * 4)
+                    .setRegisterWebSocketWriteHandlers(true))
             .webSocketHandler(websocketHandler())
             .connectionHandler(connectionHandler())
             .requestHandler(httpHandler())
@@ -330,9 +331,7 @@ public class WebSocketService {
         .map(
             header ->
                 configuration.getHostsAllowlist().stream()
-                    .anyMatch(
-                        allowlistEntry ->
-                            allowlistEntry.toLowerCase().equals(header.toLowerCase())))
+                    .anyMatch(allowListEntry -> allowListEntry.equalsIgnoreCase(header)))
         .orElse(false);
   }
 }

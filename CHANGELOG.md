@@ -1,29 +1,51 @@
 # Changelog
 
-## 24.3.3
+## Next Release
 
 ### Breaking Changes
+- RocksDB database metadata format has changed to be more expressive, the migration of an existing metadata file to the new format is automatic at startup. Before performing a downgrade to a previous version it is mandatory to revert to the original format using the subcommand `besu --data-path=/path/to/besu/datadir storage revert-metadata v2-to-v1`.
+- BFT networks won't start with SNAP or CHECKPOINT sync (previously Besu would start with this config but quietly fail to sync, so it's now more obvious that it won't work) [#6625](https://github.com/hyperledger/besu/pull/6625), [#6667](https://github.com/hyperledger/besu/pull/6667)
+- Forest pruning has been removed, it was deprecated since 24.1.0. In case you are still using it you must now remove any of the following options: `pruning-enabled`, `pruning-blocks-retained` and `pruning-block-confirmations`, from your configuration, and you may want to consider switching to Bonsai.  
 
 ### Upcoming Breaking Changes
+- Receipt compaction will be enabled by default in a future version of Besu. After this change it will not be possible to downgrade to the previous Besu version.
 
 ### Deprecations
 
 ### Additions and Improvements
+- `txpool_besuPendingTransactions`change parameter `numResults` to optional parameter [#6708](https://github.com/hyperledger/besu/pull/6708)
+- Extend `Blockchain` service [#6592](https://github.com/hyperledger/besu/pull/6592)
+- Add bft-style `blockperiodseconds` transitions to Clique [#6596](https://github.com/hyperledger/besu/pull/6596)
+- Add `createemptyblocks` transitions to Clique [#6608](https://github.com/hyperledger/besu/pull/6608)
+- RocksDB database metadata refactoring [#6555](https://github.com/hyperledger/besu/pull/6555)
+- Make layered txpool aware of `minGasPrice` and `minPriorityFeePerGas` dynamic options [#6611](https://github.com/hyperledger/besu/pull/6611)
+- Update commons-compress to 1.26.0 [#6648](https://github.com/hyperledger/besu/pull/6648)
+- Update Vert.x to 4.5.4 [#6666](https://github.com/hyperledger/besu/pull/6666)
+- Refactor and extend `TransactionPoolValidatorService` [#6636](https://github.com/hyperledger/besu/pull/6636)
+- Introduce `TransactionSimulationService` [#6686](https://github.com/hyperledger/besu/pull/6686)
+- Transaction call object to accept both `input` and `data` field simultaneously if they are set to equal values [#6702](https://github.com/hyperledger/besu/pull/6702)
+- `eth_call` for blob tx allows for empty `maxFeePerBlobGas` [#6731](https://github.com/hyperledger/besu/pull/6731)
+- Extend error handling of plugin RPC methods [#6759](https://github.com/hyperledger/besu/pull/6759)
+- Added engine_newPayloadV4 and engine_getPayloadV4 methods [#6783](https://github.com/hyperledger/besu/pull/6783)
+- Reduce storage size of receipts [#6602](https://github.com/hyperledger/besu/pull/6602)
+- Dedicated log marker for invalid txs removed from the txpool [#6826](https://github.com/hyperledger/besu/pull/6826)
+- Prevent startup with BONSAI and privacy enabled [#6809](https://github.com/hyperledger/besu/pull/6809)
+- Remove deprecated Forest pruning [#6810](https://github.com/hyperledger/besu/pull/6810)
+- Experimental Snap Sync Server [#6640](https://github.com/hyperledger/besu/pull/6640)
 - Upgrade Reference Tests to 13.2 [#6854](https://github.com/hyperledger/besu/pull/6854)
-- Add holesky DNS server [#6824](https://github.com/hyperledger/besu/pull/6824) [#6867](https://github.com/hyperledger/besu/pull/6867)
+- Update Web3j dependencies [#6811](https://github.com/hyperledger/besu/pull/6811)
+- Add `tx-pool-blob-price-bump` option to configure the price bump percentage required to replace blob transactions (by default 100%) [#6874](https://github.com/hyperledger/besu/pull/6874)
 
 ### Bug fixes
+- Fix txpool dump/restore race condition [#6665](https://github.com/hyperledger/besu/pull/6665)
+- Make block transaction selection max time aware of PoA transitions [#6676](https://github.com/hyperledger/besu/pull/6676)
+- Don't enable the BFT mining coordinator when running sub commands such as `blocks export` [#6675](https://github.com/hyperledger/besu/pull/6675)
+- In JSON-RPC return optional `v` fields for type 1 and type 2 transactions [#6762](https://github.com/hyperledger/besu/pull/6762)
+- Fix Shanghai/QBFT block import bug when syncing new nodes [#6765](https://github.com/hyperledger/besu/pull/6765)
 - Fix to avoid broadcasting full blob txs, instead of only the tx announcement, to a subset of nodes [#6835](https://github.com/hyperledger/besu/pull/6835)
+- Snap client fixes discovered during snap server testing [#6847](https://github.com/hyperledger/besu/pull/6847)
 
 ### Download Links
-
-## 24.3.2
-
-- Was not released due to CI bug
-
-## 24.3.1
-
-- Was not released due to CI bug
 
 ## 24.3.0
 
@@ -44,7 +66,7 @@
 - Add blobs to `eth_feeHistory` [#6679](https://github.com/hyperledger/besu/pull/6679)
 
 ### Deprecations
-- X_SNAP and X_CHECKPOINT are marked for deprecation and will be removed in 24.4.0 in favor of SNAP and CHECKPOINT [#6405](https://github.com/hyperledger/besu/pull/6405)
+- X_SNAP and X_CHECKPOINT are marked for deprecation and will be removed in 24.6.0 in favor of SNAP and CHECKPOINT [#6405](https://github.com/hyperledger/besu/pull/6405)
 - `--Xp2p-peer-lower-bound` is deprecated. [#6501](https://github.com/hyperledger/besu/pull/6501)
 
 ### Upcoming Breaking Changes
@@ -71,6 +93,8 @@
 - More accurate column size `storage rocksdb usage` subcommand [#6540](https://github.com/hyperledger/besu/pull/6540)
 - Adds `storage rocksdb x-stats` subcommand [#6540](https://github.com/hyperledger/besu/pull/6540)
 - New `eth_blobBaseFee`JSON-RPC method [#6581](https://github.com/hyperledger/besu/pull/6581)
+- Add blob transaction support to `eth_call` [#6661](https://github.com/hyperledger/besu/pull/6661)
+- Add blobs to `eth_feeHistory` [#6679](https://github.com/hyperledger/besu/pull/6679)
 - Upgrade reference tests to version 13.1 [#6574](https://github.com/hyperledger/besu/pull/6574)
 - Extend `BesuConfiguration` service [#6584](https://github.com/hyperledger/besu/pull/6584)
 - Add `ethereum_min_gas_price` and `ethereum_min_priority_fee` metrics to track runtime values of `min-gas-price` and `min-priority-fee` [#6587](https://github.com/hyperledger/besu/pull/6587)
@@ -84,6 +108,9 @@
 - Fix traces so that call gas costing in traces matches other clients traces [#6525](https://github.com/hyperledger/besu/pull/6525)
 
 ### Download Links
+https://github.com/hyperledger/besu/releases/tag/24.3.0
+https://github.com/hyperledger/besu/releases/download/24.3.0/besu-24.3.0.tar.gz / sha256 8037ce51bb5bb396d29717a812ea7ff577b0d6aa341d67d1e5b77cbc55b15f84
+https://github.com/hyperledger/besu/releases/download/24.3.0/besu-24.3.0.zip / sha256 41ea2ca734a3b377f43ee178166b5b809827084789378dbbe4e5b52bbd8e0674
 
 ## 24.1.2
 
@@ -432,7 +459,7 @@ https://hyperledger.jfrog.io/artifactory/besu-binaries/besu/23.4.4/besu-23.4.4.z
 - Early access - layered transaction pool implementation [#5290](https://github.com/hyperledger/besu/pull/5290)
 - New RPC method `debug_getRawReceipts` [#5476](https://github.com/hyperledger/besu/pull/5476)
 - Add TrieLogFactory plugin support [#5440](https://github.com/hyperledger/besu/pull/5440)
-- Ignore `min-block-occupancy-ratio` option when on PoS networks, since in some cases, it prevents to have full blocks even if enough transactions are present [#5491](https://github.com/hyperledger/besu/pull/5491) 
+- Ignore `min-block-occupancy-ratio` option when on PoS networks, since in some cases, it prevents to have full blocks even if enough transactions are present [#5491](https://github.com/hyperledger/besu/pull/5491)
 
 ### Bug Fixes
 - Fix eth_feeHistory response for the case in which blockCount is higher than highestBlock requested. [#5397](https://github.com/hyperledger/besu/pull/5397)
@@ -2318,7 +2345,7 @@ Workaround - Limit the number of blocks queried by each `eth_getLogs` call.
 - Implemented private contract log filters including JSON-RPC methods to interact with private filters. [\#735](https://github.com/hyperledger/besu/pull/735)
 - Implemented EIP-2315: Simple Subroutines for the EVM [\#717](https://github.com/hyperledger/besu/pull/717)
 - Implemented Splunk logging. [\#725](https://github.com/hyperledger/besu/pull/725)
-- Implemented optional native library encryption. [\#675](https://github.com/hyperledger/besu/pull/675).  To enable add `--Xsecp256k1-native-enabled` (for transaciton signatures) and/or `--Xaltbn128-native-enabled` (for altbn128 precomiled contracts) as command line options.
+- Implemented optional native library encryption. [\#675](https://github.com/hyperledger/besu/pull/675).  To enable add `--Xsecp256k1-native-enabled` (for transaction signatures) and/or `--Xaltbn128-native-enabled` (for altbn128 precomiled contracts) as command line options.
 
 ### Bug Fixes
 
@@ -2500,7 +2527,7 @@ Early access features are available features that are not recommended for produc
 have unstable interfaces.
 
 * [Onchain privacy groups](https://besu.hyperledger.org/en/latest/Concepts/Privacy/Onchain-PrivacyGroups/) with add and remove members.
-  Not being able to to re-add a member to an onchain privacy group is a [known issue](https://github.com/hyperledger/besu/issues/455)
+  Not being able to re-add a member to an onchain privacy group is a [known issue](https://github.com/hyperledger/besu/issues/455)
   with the add and remove functionality.
 
 ### Known Issues
