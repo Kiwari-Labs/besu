@@ -1,5 +1,5 @@
 /*
- * Copyright Hyperledger Besu Contributors.
+ * Copyright contributors to Hyperledger Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -125,11 +125,15 @@ public class BackwardSyncContext {
   }
 
   public synchronized CompletableFuture<Void> syncBackwardsUntil(final Hash newBlockHash) {
-    if (!isTrusted(newBlockHash)) {
-      backwardChain.addNewHash(newBlockHash);
-    }
-
     if (isReady()) {
+      if (!isTrusted(newBlockHash)) {
+        LOG.atDebug()
+            .setMessage("Appending new head block hash {} to backward sync")
+            .addArgument(newBlockHash::toHexString)
+            .log();
+        backwardChain.addNewHash(newBlockHash);
+      }
+
       final Status status = getOrStartSyncSession();
       backwardChain
           .getBlock(newBlockHash)

@@ -35,10 +35,13 @@ public class RocksDBStats {
 
   /** The Labels. */
   static final List<String> LABELS = Collections.singletonList("quantile");
+
   /** The Label 50. */
   static final List<String> LABEL_50 = Collections.singletonList("0.5");
+
   /** The Label 95. */
   static final List<String> LABEL_95 = Collections.singletonList("0.95");
+
   /** The Label 99. */
   static final List<String> LABEL_99 = Collections.singletonList("0.99");
 
@@ -160,6 +163,9 @@ public class RocksDBStats {
     HistogramType.DECOMPRESSION_TIMES_NANOS,
     HistogramType.READ_NUM_MERGE_OPERANDS,
   };
+
+  /** Default constructor */
+  private RocksDBStats() {}
 
   /**
    * Register rocks db metrics.

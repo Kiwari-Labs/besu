@@ -1,5 +1,5 @@
 /*
- * Copyright contributors to Hyperledger Besu
+ * Copyright contributors to Hyperledger Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -103,8 +103,11 @@ public class SnapProtocolManager implements ProtocolManager {
     }
     final EthMessage ethMessage = new EthMessage(ethPeer, messageData);
     if (!ethPeer.validateReceivedMessage(ethMessage, getSupportedProtocol())) {
-      LOG.debug("Unsolicited message received from, disconnecting: {}", ethPeer);
-      ethPeer.disconnect(DisconnectReason.BREACH_OF_PROTOCOL);
+      LOG.debug(
+          "Unsolicited message {} received from, disconnecting: {}",
+          ethMessage.getData().getCode(),
+          ethPeer);
+      ethPeer.disconnect(DisconnectReason.BREACH_OF_PROTOCOL_UNSOLICITED_MESSAGE_RECEIVED);
       return;
     }
 
@@ -123,7 +126,7 @@ public class SnapProtocolManager implements ProtocolManager {
     } catch (final RLPException e) {
       LOG.debug(
           "Received malformed message {} , disconnecting: {}", messageData.getData(), ethPeer, e);
-      ethPeer.disconnect(DisconnectReason.BREACH_OF_PROTOCOL);
+      ethPeer.disconnect(DisconnectReason.BREACH_OF_PROTOCOL_MALFORMED_MESSAGE_RECEIVED);
     }
     maybeResponseData.ifPresent(
         responseData -> {

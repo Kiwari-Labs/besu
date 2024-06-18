@@ -1,20 +1,17 @@
 /*
+ * Copyright contributors to Hyperledger Besu.
  *
- *  * Copyright Hyperledger Besu Contributors.
- *  *
- *  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- *  * the License. You may obtain a copy of the License at
- *  *
- *  * http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- *  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- *  * specific language governing permissions and limitations under the License.
- *  *
- *  * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
  */
-
 package org.hyperledger.besu.ethereum.eth.sync.backwardsync;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -158,7 +155,8 @@ public class BackwardSyncContextTest {
                           // use forest-based worldstate since it does not require
                           // blockheader stateroot to match actual worldstate root
                           ForestReferenceTestWorldState.create(Collections.emptyMap()),
-                          blockDataGenerator.receipts(block))));
+                          blockDataGenerator.receipts(block),
+                          Optional.empty())));
             });
 
     backwardChain = inMemoryBackwardChain();
@@ -229,6 +227,20 @@ public class BackwardSyncContextTest {
 
     future.get();
     assertThat(localBlockchain.getChainHeadBlock()).isEqualTo(remoteBlockchain.getChainHeadBlock());
+  }
+
+  @Test
+  public void shouldNotSyncUntilHashWhenNotInSync() {
+    doReturn(false).when(context).isReady();
+    final Hash hash = getBlockByNumber(REMOTE_HEIGHT).getHash();
+    final CompletableFuture<Void> future = context.syncBackwardsUntil(hash);
+
+    respondUntilFutureIsDone(future);
+
+    assertThatThrownBy(future::get)
+        .isInstanceOf(ExecutionException.class)
+        .hasMessageContaining("Backward sync is not ready");
+    assertThat(backwardChain.getFirstHashToAppend()).isEmpty();
   }
 
   @Test

@@ -11,7 +11,6 @@
  * specific language governing permissions and limitations under the License.
  *
  * SPDX-License-Identifier: Apache-2.0
- *
  */
 package org.hyperledger.besu.ethereum.referencetests;
 
@@ -76,6 +75,7 @@ public class ReferenceTestProtocolSchedules {
     builder.put("ArrowGlacier", createSchedule(genesisStub.clone().arrowGlacierBlock(0)));
     builder.put("GrayGlacier", createSchedule(genesisStub.clone().grayGlacierBlock(0)));
     builder.put("Merge", createSchedule(genesisStub.clone().mergeNetSplitBlock(0)));
+    builder.put("Paris", createSchedule(genesisStub.clone().mergeNetSplitBlock(0)));
     builder.put("Shanghai", createSchedule(genesisStub.clone().shanghaiTime(0)));
     builder.put(
         "ShanghaiToCancunAtTime15k",
@@ -83,6 +83,9 @@ public class ReferenceTestProtocolSchedules {
     builder.put("Cancun", createSchedule(genesisStub.clone().cancunTime(0)));
     // also load KZG file for mainnet
     KZGPointEvalPrecompiledContract.init();
+    builder.put(
+        "CancunToPragueAtTime15k",
+        createSchedule(genesisStub.clone().cancunTime(0).pragueTime(15000)));
     builder.put("Prague", createSchedule(genesisStub.clone().pragueTime(0)));
     builder.put("Future_EIPs", createSchedule(genesisStub.clone().futureEipsTime(0)));
     builder.put("Experimental_EIPs", createSchedule(genesisStub.clone().experimentalEipsTime(0)));

@@ -215,7 +215,7 @@ public class EthPeer implements Comparable<EthPeer> {
         .addArgument(this::getLoggableId)
         .log();
     LOG.trace("Timed out while waiting for response from peer {}", this);
-    reputation.recordRequestTimeout(requestCode).ifPresent(this::disconnect);
+    reputation.recordRequestTimeout(requestCode, this).ifPresent(this::disconnect);
   }
 
   public void recordUselessResponse(final String requestType) {
@@ -224,7 +224,7 @@ public class EthPeer implements Comparable<EthPeer> {
         .addArgument(requestType)
         .addArgument(this::getLoggableId)
         .log();
-    reputation.recordUselessResponse(System.currentTimeMillis()).ifPresent(this::disconnect);
+    reputation.recordUselessResponse(System.currentTimeMillis(), this).ifPresent(this::disconnect);
   }
 
   public void recordUsefulResponse() {
@@ -461,7 +461,7 @@ public class EthPeer implements Comparable<EthPeer> {
    *
    * @param protocolName the type of protocol the message is for
    * @param code the message code
-   * @return a request manager for the received response messsage, or Optional.empty() if this is a
+   * @return a request manager for the received response message, or Optional.empty() if this is a
    *     request message
    */
   private Optional<RequestManager> getRequestManager(final String protocolName, final int code) {

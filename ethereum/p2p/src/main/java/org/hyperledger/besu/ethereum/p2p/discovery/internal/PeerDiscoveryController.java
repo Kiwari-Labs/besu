@@ -310,6 +310,9 @@ public class PeerDiscoveryController {
     }
 
     final DiscoveryPeer peer = resolvePeer(sender);
+    if (peer == null) {
+      return;
+    }
     final Bytes peerId = peer.getId();
     switch (packet.getType()) {
       case PING:
@@ -399,30 +402,33 @@ public class PeerDiscoveryController {
   }
 
   private boolean addToPeerTable(final DiscoveryPeer peer) {
-    // Reset the last seen timestamp.
-    final long now = System.currentTimeMillis();
-    if (peer.getFirstDiscovered() == 0) {
-      peer.setFirstDiscovered(now);
-    }
-    peer.setLastSeen(now);
-
-    if (peer.getStatus() != PeerDiscoveryStatus.BONDED) {
-      peer.setStatus(PeerDiscoveryStatus.BONDED);
-      connectOnRlpxLayer(peer);
-    }
-
     final PeerTable.AddResult result = peerTable.tryAdd(peer);
+    if (result.getOutcome() != PeerTable.AddResult.AddOutcome.INVALID) {
 
-    if (result.getOutcome() == PeerTable.AddResult.AddOutcome.ALREADY_EXISTED) {
-      // Bump peer.
-      peerTable.tryEvict(peer);
-      peerTable.tryAdd(peer);
-    } else if (result.getOutcome() == PeerTable.AddResult.AddOutcome.BUCKET_FULL) {
-      peerTable.tryEvict(result.getEvictionCandidate());
-      peerTable.tryAdd(peer);
+      // Reset the last seen timestamp.
+      final long now = System.currentTimeMillis();
+      if (peer.getFirstDiscovered() == 0) {
+        peer.setFirstDiscovered(now);
+      }
+      peer.setLastSeen(now);
+
+      if (peer.getStatus() != PeerDiscoveryStatus.BONDED) {
+        peer.setStatus(PeerDiscoveryStatus.BONDED);
+        connectOnRlpxLayer(peer);
+      }
+
+      if (result.getOutcome() == PeerTable.AddResult.AddOutcome.ALREADY_EXISTED) {
+        // Bump peer.
+        peerTable.tryEvict(peer);
+        peerTable.tryAdd(peer);
+      } else if (result.getOutcome() == PeerTable.AddResult.AddOutcome.BUCKET_FULL) {
+        peerTable.tryEvict(result.getEvictionCandidate());
+        peerTable.tryAdd(peer);
+      }
+
+      return true;
     }
-
-    return true;
+    return false;
   }
 
   void connectOnRlpxLayer(final DiscoveryPeer peer) {
@@ -688,7 +694,9 @@ public class PeerDiscoveryController {
 
   public void handleBondingRequest(final DiscoveryPeer peer) {
     final DiscoveryPeer peerToBond = resolvePeer(peer);
-
+    if (peerToBond == null) {
+      return;
+    }
     if (peerPermissions.allowOutboundBonding(peerToBond)
         && PeerDiscoveryStatus.KNOWN.equals(peerToBond.getStatus())) {
       bond(peerToBond);
@@ -697,6 +705,9 @@ public class PeerDiscoveryController {
 
   // Load the peer first from the table, then from bonding cache or use the instance that comes in.
   private DiscoveryPeer resolvePeer(final DiscoveryPeer peer) {
+    if (peerTable.ipAddressIsInvalid(peer.getEndpoint())) {
+      return null;
+    }
     final Optional<DiscoveryPeer> maybeKnownPeer =
         peerTable.get(peer).filter(known -> known.discoveryEndpointMatches(peer));
     DiscoveryPeer resolvedPeer = maybeKnownPeer.orElse(peer);
@@ -714,6 +725,7 @@ public class PeerDiscoveryController {
   private class PeerInteractionState implements Predicate<Packet> {
 
     private static final int MAX_RETRIES = 5;
+
     /**
      * The action that led to the peer being in this state (e.g. sending a PING or NEIGHBORS
      * message), in case it needs to be retried.
@@ -721,12 +733,15 @@ public class PeerDiscoveryController {
     private final Consumer<PeerInteractionState> action;
 
     private final Bytes peerId;
+
     /** The expected type of the message that will transition the peer out of this state. */
     private final PacketType expectedType;
 
     private final Counter retryCounter;
+
     /** A custom filter to accept transitions out of this state. */
     private Predicate<Packet> filter;
+
     /** Timers associated with this entry. */
     private OptionalLong timerId = OptionalLong.empty();
 

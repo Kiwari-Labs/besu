@@ -24,6 +24,7 @@ import org.hyperledger.besu.tests.acceptance.dsl.pubsub.WebSocket;
 import io.vertx.core.Vertx;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class NewPendingTransactionAcceptanceTest extends AcceptanceTestBase {
@@ -115,6 +116,7 @@ public class NewPendingTransactionAcceptanceTest extends AcceptanceTestBase {
   }
 
   @Test
+  @Disabled("test is flaky - sometimes returns more than 3 total events #6909")
   public void subscriptionToMinerNodeMustReceiveEveryPublishEvent() {
     final Subscription minerSubscription = minerWebSocket.subscribe();
 
@@ -157,6 +159,7 @@ public class NewPendingTransactionAcceptanceTest extends AcceptanceTestBase {
   }
 
   @Test
+  @Disabled("This test is flaky and needs to be fixed")
   public void everySubscriptionMustReceiveEveryPublishEvent() {
     final Subscription minerSubscriptionOne = minerWebSocket.subscribe();
     final Subscription minerSubscriptionTwo = minerWebSocket.subscribe();

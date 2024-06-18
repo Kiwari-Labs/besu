@@ -1,5 +1,5 @@
 /*
- * Copyright Hyperledger Besu Contributors.
+ * Copyright contributors to Hyperledger Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -11,18 +11,17 @@
  * specific language governing permissions and limitations under the License.
  *
  * SPDX-License-Identifier: Apache-2.0
- *
  */
 package org.hyperledger.besu.ethereum.chain;
 
-import static org.hyperledger.besu.ethereum.chain.BadBlockReason.DESCENDS_FROM_BAD_BLOCK;
-import static org.hyperledger.besu.ethereum.chain.BadBlockReason.SPEC_VALIDATION_FAILURE;
+import static org.hyperledger.besu.plugin.data.BadBlockCause.BadBlockReason.DESCENDS_FROM_BAD_BLOCK;
+import static org.hyperledger.besu.plugin.data.BadBlockCause.BadBlockReason.SPEC_VALIDATION_FAILURE;
 
 import org.hyperledger.besu.ethereum.core.Block;
 
 import com.google.common.base.MoreObjects;
 
-public class BadBlockCause {
+public class BadBlockCause implements org.hyperledger.besu.plugin.data.BadBlockCause {
 
   private final BadBlockReason reason;
   private final String description;
@@ -42,10 +41,12 @@ public class BadBlockCause {
     this.description = description;
   }
 
+  @Override
   public BadBlockReason getReason() {
     return reason;
   }
 
+  @Override
   public String getDescription() {
     return description;
   }

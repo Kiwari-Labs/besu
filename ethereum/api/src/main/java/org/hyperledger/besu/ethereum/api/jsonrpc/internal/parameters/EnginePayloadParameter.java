@@ -1,5 +1,5 @@
 /*
- * Copyright Hyperledger Besu Contributors.
+ * Copyright contributors to Hyperledger Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -44,6 +44,7 @@ public class EnginePayloadParameter {
   private final Long blobGasUsed;
   private final String excessBlobGas;
   private final List<DepositParameter> deposits;
+  private final List<WithdrawalRequestParameter> withdrawalRequests;
 
   /**
    * Creates an instance of EnginePayloadParameter.
@@ -66,6 +67,7 @@ public class EnginePayloadParameter {
    * @param blobGasUsed QUANTITY, 64 Bits
    * @param excessBlobGas QUANTITY, 64 Bits
    * @param deposits List of deposit parameters.
+   * @param withdrawalRequestParameters List of withdrawal requests parameters.
    */
   @JsonCreator
   public EnginePayloadParameter(
@@ -86,7 +88,9 @@ public class EnginePayloadParameter {
       @JsonProperty("withdrawals") final List<WithdrawalParameter> withdrawals,
       @JsonProperty("blobGasUsed") final UnsignedLongParameter blobGasUsed,
       @JsonProperty("excessBlobGas") final String excessBlobGas,
-      @JsonProperty("depositReceipts") final List<DepositParameter> deposits) {
+      @JsonProperty("depositRequests") final List<DepositParameter> deposits,
+      @JsonProperty("withdrawalRequests")
+          final List<WithdrawalRequestParameter> withdrawalRequestParameters) {
     this.blockHash = blockHash;
     this.parentHash = parentHash;
     this.feeRecipient = feeRecipient;
@@ -105,6 +109,7 @@ public class EnginePayloadParameter {
     this.blobGasUsed = blobGasUsed == null ? null : blobGasUsed.getValue();
     this.excessBlobGas = excessBlobGas;
     this.deposits = deposits;
+    this.withdrawalRequests = withdrawalRequestParameters;
   }
 
   public Hash getBlockHash() {
@@ -177,5 +182,9 @@ public class EnginePayloadParameter {
 
   public List<DepositParameter> getDeposits() {
     return deposits;
+  }
+
+  public List<WithdrawalRequestParameter> getWithdrawalRequests() {
+    return withdrawalRequests;
   }
 }

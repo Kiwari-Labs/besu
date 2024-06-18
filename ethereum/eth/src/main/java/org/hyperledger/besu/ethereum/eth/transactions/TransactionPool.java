@@ -89,7 +89,7 @@ public class TransactionPool implements BlockAddedObserver {
   private static final Logger LOG = LoggerFactory.getLogger(TransactionPool.class);
   private static final Logger LOG_FOR_REPLAY = LoggerFactory.getLogger("LOG_FOR_REPLAY");
   private final Supplier<PendingTransactions> pendingTransactionsSupplier;
-  private volatile PendingTransactions pendingTransactions;
+  private volatile PendingTransactions pendingTransactions = new DisabledPendingTransactions();
   private final ProtocolSchedule protocolSchedule;
   private final ProtocolContext protocolContext;
   private final EthContext ethContext;
@@ -147,6 +147,16 @@ public class TransactionPool implements BlockAddedObserver {
             () ->
                 configuration.getPrioritySenders().stream()
                     .map(Address::toHexString)
+                    .collect(Collectors.joining(",")))
+        .log();
+    // log the max prioritized txs by type
+    LOG_FOR_REPLAY
+        .atTrace()
+        .setMessage("{}")
+        .addArgument(
+            () ->
+                configuration.getMaxPrioritizedTransactionsByType().entrySet().stream()
+                    .map(e -> e.getKey().name() + "=" + e.getValue())
                     .collect(Collectors.joining(",")))
         .log();
   }

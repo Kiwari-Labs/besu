@@ -1,5 +1,5 @@
 /*
- * Copyright Hyperledger Besu Contributors.
+ * Copyright contributors to Hyperledger Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -64,12 +64,14 @@ public enum PrivacyVersionedStorageFormat implements VersionedStorageFormat {
   public static VersionedStorageFormat defaultForNewDB(
       final DataStorageConfiguration configuration) {
     return switch (configuration.getDatabaseFormat()) {
-      case FOREST -> configuration.getReceiptCompactionEnabled()
-          ? FOREST_WITH_RECEIPT_COMPACTION
-          : FOREST_WITH_VARIABLES;
-      case BONSAI -> configuration.getReceiptCompactionEnabled()
-          ? BONSAI_WITH_RECEIPT_COMPACTION
-          : BONSAI_WITH_VARIABLES;
+      case FOREST ->
+          configuration.getReceiptCompactionEnabled()
+              ? FOREST_WITH_RECEIPT_COMPACTION
+              : FOREST_WITH_VARIABLES;
+      case BONSAI ->
+          configuration.getReceiptCompactionEnabled()
+              ? BONSAI_WITH_RECEIPT_COMPACTION
+              : BONSAI_WITH_VARIABLES;
     };
   }
 

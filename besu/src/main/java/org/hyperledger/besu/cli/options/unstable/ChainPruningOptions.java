@@ -1,5 +1,5 @@
 /*
- * Copyright Hyperledger Besu Contributors.
+ * Copyright contributors to Hyperledger Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -11,7 +11,6 @@
  * specific language governing permissions and limitations under the License.
  *
  * SPDX-License-Identifier: Apache-2.0
- *
  */
 package org.hyperledger.besu.cli.options.unstable;
 
@@ -30,8 +29,10 @@ public class ChainPruningOptions implements CLIOptions<ChainPrunerConfiguration>
   private static final String CHAIN_PRUNING_BLOCKS_RETAINED_FLAG =
       "--Xchain-pruning-blocks-retained";
   private static final String CHAIN_PRUNING_FREQUENCY_FLAG = "--Xchain-pruning-frequency";
+
   /** The constant DEFAULT_CHAIN_DATA_PRUNING_MIN_BLOCKS_RETAINED. */
   public static final long DEFAULT_CHAIN_DATA_PRUNING_MIN_BLOCKS_RETAINED = 7200;
+
   /** The constant DEFAULT_CHAIN_DATA_PRUNING_FREQUENCY. */
   public static final int DEFAULT_CHAIN_DATA_PRUNING_FREQUENCY = 256;
 
@@ -59,6 +60,9 @@ public class ChainPruningOptions implements CLIOptions<ChainPrunerConfiguration>
           "The number of blocks added to the chain between two pruning operations. Must be non-negative (default: ${DEFAULT-VALUE})")
   private final PositiveNumber chainDataPruningBlocksFrequency =
       PositiveNumber.fromInt(DEFAULT_CHAIN_DATA_PRUNING_FREQUENCY);
+
+  /** Default Constructor. */
+  ChainPruningOptions() {}
 
   /**
    * Create chain pruning options.
