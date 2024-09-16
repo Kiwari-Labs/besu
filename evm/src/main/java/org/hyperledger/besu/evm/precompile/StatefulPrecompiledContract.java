@@ -60,6 +60,58 @@ public class StatefulPrecompiledContract extends AbstractPrecompiledContract {
         }
     }
 
+    private Bytes decimals() {
+        return Bytes.ofUnsignedInt(18);
+    }
+
+    private Bytes name() {
+        return Bytes.of("Ethereum".getBytes(UTF_8));
+    }
+
+    private Bytes symbol() {
+        return Bytes.of("ETH".getBytes(UTF_8));
+    }
+
+    private Bytes totalSupply() {
+        return Bytes.ofUnsignedInt(0);
+    }
+
+    private Bytes balanceOf(final MutableAccount address) {
+        return address.getBalance();
+    }
+
+    // private updateBalance(final MutableAccount from, final MutableAccount to, MessageFrame messageFrame) {
+    //     from.decreaseBalance(value);
+    //     to.incrementBalance(value);
+    //     emit event
+    // }
+
+    // private updateApprove(final MutableAccount contract, final MutableAccount owner, final MutableAccount spender, Wei value, bool emitEvent, MessageFrame messageFrame) {
+    //     if (emitEvent) {
+    //        emit event 
+    //     }
+    // }     
+
+    // private Bytes approve(final MutableAccount contract, final Bytes payload, MessageFrame messageFrame) {
+    //     updateApprove(contract, owner, spender, value, true, messageFrame)
+    //     return TRUE
+    // }
+
+    // private Bytes spendAllowance(final MutableAccount contract, final Bytes payload, MessageFrame messageFrame) {
+    //     updateApprove(contract, owner, spender, value, false, messageFrame)
+    // }
+
+    // private Bytes transfer(final Bytes payload, MessageFrame messageFrame) {
+    //     updateBalance(from, to, value);
+    //     return TRUE
+    // }      
+
+    // private Bytes transferFrom(final MutableAccount contract, final Bytes payload, MessageFrame messageFrame ) {
+    //     spendAllowance(contract, from, messageFrame.sender(), value);
+    //     updateBalance(from, to, value);
+    //     return TRUE
+    // }
+
     @Nonnull
     @Override
     public PrecompileContractResult computePrecompile(final Bytes input, @Nonnull final MessageFrame messageFrame) {
@@ -68,18 +120,51 @@ public class StatefulPrecompiledContract extends AbstractPrecompiledContract {
             return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
         } else { 
+            final Bytes function = input.slice(0, 4);
             final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
             final MutableAccount erc20 = worldUpdater.getOrCreate(IERC20_ADDRESS);
-            // erc20.setStorageValue(UInt256.ZERO, UInt256.valueOf(1337));
-            // final Bytes32 storedValue = mutableAccount.getStorageValue(UInt256.ZERO);
-            
-            // ignore input, just increment balance with fixed value 1000 wei each call.
-            erc20.incrementBalance(Wei.of(1337));
-
-            worldUpdater.commit();
-            messageFrame.storageWasUpdated(UInt256.ZERO, UInt256.valueOf(1337));
-            LOG.info("State updated balance successfully: {}", erc20.getBalance());
-            return PrecompileContractResult.success(input.copy());
+            if (function.equals(APPROVE_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    approve(erc20, input, messageFrame)
+                    );
+            } 
+            else if (function.equals(ALLOWANCE_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    allowance(input)
+                    );
+            }
+            else if (function.equals(BALANCEOF_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    balanceOf(input)
+                    );
+            }
+            else if (function.equals(DECIMALS_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    decimals()
+                    );
+            }
+            else if (function.equals(NAME_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    name()
+                    );
+            }
+            else if (function.equals(TRANSFER_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    transfer(input, messageFrame));
+            }
+            else if (function.equals(TRANSFERFROM_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    transferFrom(erc20, input, messageFrame)
+                    );
+            }
+            else if (function.equals(TOTALSUPPLY_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    totalSupply()
+                    );
+            } else {
+                LOG.info("Failed interface not found");
+                return PrecompileContractResult.halt(null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
+            }
         }
     }
 }
