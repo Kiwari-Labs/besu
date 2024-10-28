@@ -41,9 +41,10 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
     
     // TODO Define MAX_SIZE for safety, 
     // we should not allowing iterate the list and take too long.
-    // best case 100ms 1/10 of 1 sec block time.
-    // usual case 250ms 1/4 of 1 sec block time.
-    // worst case 750ms 3/4 of 1 sec block time.
+    // case 100ms 1/10 of 1 sec block time.
+    // case 250ms 1/4 of 1 sec block time. based on blocktime of arbitrum and unichain
+    // case 750ms 3/4 of 1 sec block time. 
+    // case 1000ms 1 sec block time. 
 
     /** CONSTANT VARIABLE */
     private long static final MAX_SIZE = 5_000_000; // assume optimal number.
@@ -55,48 +56,51 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
     private Bytes static final FALSE = UInt256.valueOf(0); // `zero` can be decode to `false` in solidity type bool
 
     /** CALL FUNCTION SIGNATURE */
-    private static final Bytes REMOVE_SIGNATURE = Hash.keccak256(Bytes.of("remove(bytes32,uint256)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes INSERT_SIGNATURE = Hash.keccak256(Bytes.of("insert(bytes32,uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes SHRINK_SIGNATURE = Hash.keccak256(Bytes.of("shrink(bytes32,uint256)".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes REMOVE_SIGNATURE = Hash.keccak256(Bytes.of("remove(uint256)".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes INSERT_SIGNATURE = Hash.keccak256(Bytes.of("insert(uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
 
     /** STATIC CALL FUNCTION SIGNATURE */
-    private static final Bytes CONTAINS_SIGNATURE = Hash.keccak256(Bytes.of("contains(bytes32,uint256)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes HEAD_SIGNATURE = Hash.keccak256(Bytes.of("head(bytes32)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes LIST_SIGNATURE = Hash.keccak256(Bytes.of("list(bytes32)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes MIDDLE_SIGNATURE = Hash.keccak256(Bytes.of("middle(bytes32)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes NEXT_SIGNATURE = Hash.keccak256(Bytes.of("next(bytes32,uint256)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes PREVIOUS_SIGNATURE = Hash.keccak256(Bytes.of("previous(bytes32,uint256)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes SIZE_SIGNATURE = Hash.keccak256(Bytes.of("size(bytes32)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes TAIL_SIGNATURE = Hash.keccak256(Bytes.of("tail(bytes32)".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes FIND_SIGNATURE = Hash.keccak256(Bytes.of("find(uint256)".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes FRONT_SIGNATURE = Hash.keccak256(Bytes.of("front()".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes BACK_SIGNATURE = Hash.keccak256(Bytes.of("back()".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes LIST_SIGNATURE = Hash.keccak256(Bytes.of("list()".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes REVERSE_LIST_SIGNATURE = Hash.keccak256(Bytes.of("rlist()".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes MIDDLE_SIGNATURE = Hash.keccak256(Bytes.of("middle()".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes NEXT_SIGNATURE = Hash.keccak256(Bytes.of("next(uint256)".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes PREVIOUS_SIGNATURE = Hash.keccak256(Bytes.of("previous(uint256)".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes SIZE_SIGNATURE = Hash.keccak256(Bytes.of("size()".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes MAX_SIZE_SIGNATURE = Hash.keccak256(Bytes.of("max_size()".getBytes(UTF_8))).slice(0, 4);
 
     public StatefulSortedCircularLinkedListPrecompiledContract(final GasCalculator gasCalculator) {
         super("StatefulSortedCircularLinkedListPrecompiledContract", gasCalculator);
     }
 
+    // TODO reuse blake2bf for storage slot.
+
     /** CalculateStorageSLot for List size */
-    private Uint256 CalculateStorageSlot(final Address address, final Bytes pointer, final Uint256 index) {
-        // Hash.keccak256(address, pointer, index); // covert into Uint256
+    private Uint256 CalculateStorageSlot(final Address address, final Bytes pointer, final Uint256 element) {
+        // Hash.keccak256(address, pointer, element); // covert into Uint256
         return Uint256.valueOf(1);
     }
     
     /** CalculateStorageSLot for Node */
-    private Uint256 CalculateStorageSlot(final Address address, final Bytes pointer, final Uint256 index, final Uint8 direction) {
-        // Hash.keccak256(address, pointer, index, direction); // convert into Uint256
+    private Uint256 CalculateStorageSlot(final Address address, final Bytes pointer, final Uint256 element, final Uint8 direction) {
+        // Hash.keccak256(address, pointer, element, direction); // convert into Uint256
         return Uint256.valueOf(1);
     }
 
-    //** STATIC CALL FUNCTION */
-    private Bytes contains(final MutableAccount address, final Bytes payload) {
+    /** STATIC CALL FUNCTION */
+    private Bytes find(final MutableAccount address, final Bytes payload) {
         // final Uint256 pointer = payload; // storage pointer
-        // final Uint256 index = payload; //  given index
-        // final Uint256 previousNode = calculateStorageSlot(messageFrame.sender, pointer, index, PREVIOUS);
-        // final Uint256 nextNode = calculateStorageSlot(messageFrame.sender, pointer, SENTINEL, NEXT);
-        // final Bytes output = (nextNode == index) || (previousNode > 0 );
+        // final Uint256 element = payload; //  given element
+        // final Uint256 previousElement = calculateStorageSlot(messageFrame.sender, pointer, element, PREVIOUS);
+        // final Uint256 nextElement = calculateStorageSlot(messageFrame.sender, pointer, SENTINEL, NEXT);
+        // final Bytes output = (nextElement == element) || (previousElement > 0 );
         // return output;
         return address.getStorageValue(slot);
     }
 
-    private Bytes head(final MutableAccount address) {
+    private Bytes front(final MutableAccount address) {
         // final Uint256 pointer = payload; // storage pointer
         // final Uint256 slot = calculateStorageSlot(messageFrame.sender, pointer, SENTINEL, NEXT);
         return address.getStorageValue(slot);
@@ -111,15 +115,15 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
 
     private Bytes next(final MutableAccount address, final Bytes payload) {
         // final Uint256 pointer = payload; // storage pointer
-        // final Uint256 index = payload; //  given index
-        // final Uint256 slot = calculateStorageSlot(messageFrame.address, pointer, index, NEXT);
+        // final Uint256 element = payload; //  given element
+        // final Uint256 slot = calculateStorageSlot(messageFrame.address, pointer, element, NEXT);
         return address.getStorageValue(slot);
     }
 
     private Bytes previous(final MutableAccount address, final Bytes payload) {
         // final Uint256 pointer = payload; // storage pointer
-        // final Uint256 index = payload; //  given index
-        // final Uint256 slot = calculateStorageSlot(messageFrame.address, pointer, index, PERVIOUS);
+        // final Uint256 element = payload; //  given element
+        // final Uint256 slot = calculateStorageSlot(messageFrame.address, pointer, element, PERVIOUS);
         return address.getStorageValue(slot);
     }
 
@@ -129,13 +133,29 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
         return address.getStorageValue(slot);
     }
 
-    private Bytes tail(final MutableAccount address) {
+    private Bytes maxSize() {
+        return Uint256.valueOf(MAX_SIZE);
+    }
+
+    private Bytes back(final MutableAccount address) {
         // final Uint256 pointer = payload; // storage pointer
         // final Uint256 slot = calculateStorageSlot(address, pointer, SENTINEL, PREVIOUS);
         return address.getStorageValue(slot);
     }
 
-    //** CALL FUNCTION */
+    private Bytes list(final MutableAccount address) {
+        // final Uint256 pointer = payload; // storage pointer
+        // final Uint256 slot = calculateStorageSlot(address, pointer, SENTINEL, PREVIOUS);
+        return address.getStorageValue(slot);
+    }
+
+    private Bytes reverseList(final MutableAccount address) {
+        // final Uint256 pointer = payload; // storage pointer
+        // final Uint256 slot = calculateStorageSlot(address, pointer, SENTINEL, PREVIOUS);
+        return address.getStorageValue(slot);
+    }
+
+    /** CALL FUNCTION */
     private Bytes insert(final MutableAccount address, final Bytes payload) {
         final boolean exist = contain(address, payload, messageFrame);
         final Uint256 s = size(address, payload, messageFrame);
@@ -146,57 +166,57 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
             // do nothing
             return FALSE;
         } else {
-            final Uint256 h = head(address, payload, messageFrame);
-            final Uint256 t = tail(address, payload, messageFrame);
+            final Uint256 front = front(address, payload, messageFrame);
+            final Uint256 back = back(address, payload, messageFrame);
             if (s == SENTINEL) {
                 // insert first node
                 final Uint256 previousSentinel = calculateStorageSlot(address, pointer, SENTINEL, PREVIOUS);
                 final Uint256 nextSentinel = calculateStorageSlot(address, pointer, SENTINEL, NEXT);
-                final Uint256 previousNode = calculateStorageSlot(address, pointer, index, PREVIOUS);
-                final Uint256 nextNode = calculateStorageSlot(address, pointer, index, NEXT);
-                address.setStorageValue(previousSentinel, index);
-                address.setStorageVaule(nextSentinel, index);
-                address.setStorageValue(previousNode, SENTINEL);
-                address.setStorageVaule(nextNode, SENTINEL);
-            } else if (index < h) {
-                // insert head
+                final Uint256 previousElement = calculateStorageSlot(address, pointer, element, PREVIOUS);
+                final Uint256 nextElement = calculateStorageSlot(address, pointer, element, NEXT);
+                address.setStorageValue(previousSentinel, element);
+                address.setStorageVaule(nextSentinel, element);
+                address.setStorageValue(previousElement, SENTINEL);
+                address.setStorageVaule(nextElement, SENTINEL);
+            } else if (element < front) {
+                // push_front
                 final Uint256 nextSentinel = calculateStorageSlot(address, pointer, SENTINEL, NEXT);
-                final Uint256 head = calculateStorageSlot(address, pointer, SENTINEL, NEXT);
-                final Uint256 previousNode = calculateStorageSlot(address, pointer, index, PREVIOUS);
-                final Uint256 nextNode = calculateStorageSlot(address, pointer, index, PREVIOUS);
-                address.setStorageValue(nextSentinel, index);
-                address.setStorageVaule(head, index);
-                address.setStorageValue(previousNode, SENTINEL);
-                address.setStorageVaule(nextNode, h);
-            } else if (index > t) {
-                // insert tail
+                final Uint256 front = calculateStorageSlot(address, pointer, SENTINEL, NEXT);
+                final Uint256 previousElement = calculateStorageSlot(address, pointer, element, PREVIOUS);
+                final Uint256 nextElement = calculateStorageSlot(address, pointer, element, PREVIOUS);
+                address.setStorageValue(nextSentinel, element);
+                address.setStorageVaule(front, element);
+                address.setStorageValue(previousElement, SENTINEL);
+                address.setStorageVaule(nextElement, front);
+            } else if (element > back) {
+                // push_back
                 final Uint256 previousSentinel = calculateStorageSlot(address, pointer, SENTINEL, NEXT);
-                final Uint256 tail = calculateStorageSlot(address, pointer, SENTINEL, NEXT);
-                final Uint256 previousNode = calculateStorageSlot(address, pointer, index, PREVIOUS);
-                final Uint256 nextNode = calculateStorageSlot(address, pointer, index, PREVIOUS);
-                address.setStorageValue(previousSentinel, index);
-                address.setStorageVaule(tail, index);
-                address.setStorageValue(previousNode, t);
-                address.setStorageVaule(nextNode, SENTINEL);
+                final Uint256 back = calculateStorageSlot(address, pointer, SENTINEL, NEXT);
+                final Uint256 previousElement = calculateStorageSlot(address, pointer, element, PREVIOUS);
+                final Uint256 nextElement = calculateStorageSlot(address, pointer, element, PREVIOUS);
+                address.setStorageValue(previousSentinel, element);
+                address.setStorageVaule(back, element);
+                address.setStorageValue(previousElement, back);
+                address.setStorageVaule(nextElement, SENTINEL);
             } else {
-                // insert to right position
+                // insert specific element
                 Uint256 tmpCurr;
-                if (index - h <= t - index) {
-                    tmpCurr = h;
-                    while (index > tmpCurr) {
+                if (element - front <= back - element) {
+                    tmpCurr = front;
+                    while (element > tmpCurr) {
                         tmpCurr = next(address, tmpCurr, messageFrame);
                     }
                 } else {
-                    tmpCurr = t;
-                    while (index < tmpCurr) {
+                    tmpCurr = back;
+                    while (element < tmpCurr) {
                         tmpCurr = previous(address, tmpCurr, massageFrame);
                     }
                 }
                 Uint256 tmpPrev = calculateStorageSlot(address, pointer, tmpCurr, NEXT);
-                address.setStorageValue(tmpPrev, index);
-                address.setStorageVaule(tmpCurr, index);
-                address.setStorageValue(previousNode, tmpPrev);
-                address.setStorageVaule(nextNode, tmpCurr);
+                address.setStorageValue(tmpPrev, element);
+                address.setStorageVaule(tmpCurr, element);
+                address.setStorageValue(previousElement, tmpPrev);
+                address.setStorageVaule(nextElement, tmpCurr);
             }
             return TRUE;
         }
@@ -205,7 +225,11 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
     private Bytes remove(final MutableAccount address, final Bytes payload, @Nonnull final MessageFrame messageFrame) {
         final boolean exist = contain(address, payload, messageFrame);
         if exist {
-            // remove
+            // pop_front
+
+            // pop_back
+
+            // remove specific element
             return TRUE;
         } else {
             // do nothing
@@ -217,13 +241,13 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
     public long gasRequirement(final Bytes input) {
         final Bytes function = input.slice(0, 4);
         if (function.equals(REMOVE_SIGNATURE) ||
-            function.equals(INSERT_SIGNATURE) ||
-            function.equals(SHRINK_SIGNATURE)) {
+            function.equals(INSERT_SIGNATURE) {
             // for call function should be high
+            // TODO calculate from time and space complexity of algorithms
             return 5000;
         } else {
             // for static call function should be low
-            return 100;
+            return 2500;
         }
     }
 
@@ -237,61 +261,53 @@ public class StatefulSortedCircularLinkedListPrecompiledContract extends Abstrac
             final Bytes function = input.slice(0, 4);
             final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
             final MutableAccount sender = worldUpdater.getOrCreate(messageFrame..getSenderAddress());
-            if (function.equals(CONTAINS_SIGNATURE)) {
+            if (function.equals(FIND_SIGNATURE)) {
                 return PrecompileContractResult.success(
-                    contains(sender, payload, messageFrame)
+                    find(sender, payload, messageFrame)
                     );
-            } 
-            else if (function.equals(HEAD_SIGNATURE)) {
+            } else if (function.equals(FRONT_SIGNATURE)) {
                 return PrecompileContractResult.success(
-                    head(sender, payload, messageFrame)
+                    front(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(LIST_SIGNATURE)) {
+            } else if (function.equals(LIST_SIGNATURE)) {
                 return PrecompileContractResult.success(
                     list(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(MIDDLE_SIGNATURE)) {
+            } else if (function.equals(LIST_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    reverseList(sender, payload, messageFrame)
+                    );
+            } else if (function.equals(MIDDLE_SIGNATURE)) {
                 return PrecompileContractResult.success(
                     middle(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(NEXT_SIGNATURE)) {
+            } else if (function.equals(NEXT_SIGNATURE)) {
                 return PrecompileContractResult.success(
                     next(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(PREVIOUS_SIGNATURE)) {
+            } else if (function.equals(PREVIOUS_SIGNATURE)) {
                 return PrecompileContractResult.success(
                     previous(sender, payload, messageFrame));
-            }
-            else if (function.equals(SIZE_SIGNATURE)) {
+            } else if (function.equals(SIZE_SIGNATURE)) {
                 return PrecompileContractResult.success(
                     size(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(TAIL_SIGNATURE)) {
+            } else if (function.equals(MAX_SIZE_SIGNATURE)) {
+                return PrecompileContractResult.success(maxSize());
+            } else if (function.equals(BACK_SIGNATURE)) {
                 return PrecompileContractResult.success(
-                    tail(sender, payload, messageFrame)
+                    back(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(REMOVE_SIGNATURE)) {
+            } else if (function.equals(REMOVE_SIGNATURE)) {
                 return PrecompileContractResult.success(
                     remove(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(INSERT_SIGNATURE)) {
+            } else if (function.equals(INSERT_SIGNATURE)) {
                 return PrecompileContractResult.success(
                     insert(sender, payload, messageFrame)
                     );
-            }
-            else if (function.equals(SHRINK_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    shrink(sender, payload, messageFrame)
-                    );
             } else {
-                LOG.info("Failed interface not found");
+                LOG.trace("Failed interface id invalid");
                 return PrecompileContractResult.halt(null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
             }
         }

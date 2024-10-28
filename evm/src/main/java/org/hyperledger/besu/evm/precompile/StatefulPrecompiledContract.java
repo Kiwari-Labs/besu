@@ -72,16 +72,16 @@ public class StatefulPrecompiledContract extends AbstractPrecompiledContract {
             final MutableAccount mutableAccount = worldUpdater.getOrCreate(STORAGE_CONTRACT_ADDRESS);
             final Bytes state = mutableAccount.getStorageValue(STORAGE_VALUE);
             if (function.equals(GET_SIGNATURE)) {
-                LOG.info("Latest state is {}", state);
+                LOG.trace("Latest state is {}", state);
                 return PrecompileContractResult.success(state);
             } else if (function.equals(SET_SIGNATURE)) {
                 final UInt256 payloadAsUInt256 = UInt256.fromBytes(Bytes32.leftPad(payload));
                 // NOTE: you need to initialized the balance of address to 0x1 in genesis.json first.
                 mutableAccount.setStorageValue(STORAGE_VALUE, payloadAsUInt256);
-                LOG.info("State update from {} to {}", state, payloadAsUInt256);
+                LOG.trace("State update from {} to {}", state, payloadAsUInt256);
                 return PrecompileContractResult.success(Bytes.EMPTY);
             } else {
-                LOG.info("Failed interface not found");
+                LOG.trace("Failed interface not found");
                 return PrecompileContractResult.halt(null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
             }
         }
