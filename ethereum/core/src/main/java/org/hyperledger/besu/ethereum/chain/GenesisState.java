@@ -28,7 +28,6 @@ import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderBuilder;
 import org.hyperledger.besu.ethereum.core.Difficulty;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
-import org.hyperledger.besu.ethereum.core.Request;
 import org.hyperledger.besu.ethereum.core.Withdrawal;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ScheduleBasedBlockHeaderFunctions;
@@ -145,10 +144,8 @@ public final class GenesisState {
   private static BlockBody buildBody(final GenesisConfigFile config) {
     final Optional<List<Withdrawal>> withdrawals =
         isShanghaiAtGenesis(config) ? Optional.of(emptyList()) : Optional.empty();
-    final Optional<List<Request>> requests =
-        isPragueAtGenesis(config) ? Optional.of(emptyList()) : Optional.empty();
 
-    return new BlockBody(emptyList(), emptyList(), withdrawals, requests);
+    return new BlockBody(emptyList(), emptyList(), withdrawals);
   }
 
   public Block getBlock() {
@@ -220,7 +217,7 @@ public final class GenesisState {
         .excessBlobGas(isCancunAtGenesis(genesis) ? parseExcessBlobGas(genesis) : null)
         .parentBeaconBlockRoot(
             (isCancunAtGenesis(genesis) ? parseParentBeaconBlockRoot(genesis) : null))
-        .requestsRoot(isPragueAtGenesis(genesis) ? Hash.EMPTY_TRIE_HASH : null)
+        .requestsHash(isPragueAtGenesis(genesis) ? Hash.EMPTY_REQUESTS_HASH : null)
         .buildBlockHeader();
   }
 
@@ -312,7 +309,7 @@ public final class GenesisState {
     if (cancunEOFTimestamp.isPresent()) {
       return genesis.getTimestamp() >= cancunEOFTimestamp.getAsLong();
     }
-    return isPragueEOFAtGenesis(genesis);
+    return false;
   }
 
   private static boolean isPragueAtGenesis(final GenesisConfigFile genesis) {
@@ -320,13 +317,13 @@ public final class GenesisState {
     if (pragueTimestamp.isPresent()) {
       return genesis.getTimestamp() >= pragueTimestamp.getAsLong();
     }
-    return isPragueEOFAtGenesis(genesis);
+    return isOsakaAtGenesis(genesis);
   }
 
-  private static boolean isPragueEOFAtGenesis(final GenesisConfigFile genesis) {
-    final OptionalLong pragueEOFTimestamp = genesis.getConfigOptions().getPragueEOFTime();
-    if (pragueEOFTimestamp.isPresent()) {
-      return genesis.getTimestamp() >= pragueEOFTimestamp.getAsLong();
+  private static boolean isOsakaAtGenesis(final GenesisConfigFile genesis) {
+    final OptionalLong osakaTimestamp = genesis.getConfigOptions().getOsakaTime();
+    if (osakaTimestamp.isPresent()) {
+      return genesis.getTimestamp() >= osakaTimestamp.getAsLong();
     }
     return isFutureEipsTimeAtGenesis(genesis);
   }
