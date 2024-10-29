@@ -26,7 +26,8 @@ public class PrecompileContractRegistry {
 
   /** Instantiates a new Precompile contract registry. */
   public PrecompileContractRegistry() {
-    // if implementing multiple stateful precompiled contract and the initial capacity can be change.
+    // if implementing multiple stateful precompiled contract and the initial capacity can be
+    // change.
     this.precompiles = new HashMap<>(16);
   }
 
