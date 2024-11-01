@@ -59,13 +59,13 @@ public class StatefulSortedCircularLinkedListPrecompiledContract
   private static final Bytes FALSE =
       UInt256.valueOf(0); // `zero` can be decode to `false` in solidity type bool
 
-  // CALL FUNCTION SIGNATURE
+  // CALL FUNCTION SIGNATURE (mutate state)
   private static final Bytes REMOVE_SIGNATURE =
       Hash.keccak256(Bytes.of("remove(uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes INSERT_SIGNATURE =
       Hash.keccak256(Bytes.of("insert(uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
 
-  // STATIC CALL FUNCTION SIGNATURE
+  // STATIC CALL FUNCTION SIGNATURE (read)
   private static final Bytes FIND_SIGNATURE =
       Hash.keccak256(Bytes.of("find(uint256, uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes FRONT_SIGNATURE =
@@ -91,45 +91,62 @@ public class StatefulSortedCircularLinkedListPrecompiledContract
     super("StatefulSortedCircularLinkedListPrecompiledContract", gasCalculator);
   }
 
+
   // TODO:DLP reuse blake2bf for storage slot.
 
-  // CalculateStorageSLot for List size
+  // CalculateStorageSLot for list
   private UInt256 CalculateStorageSlotBlake2bf(
       final Address address, final Bytes key, final UInt256 index) {
-    // Hash.blake2bf(address, key, index); // convert into UInt256
+    // r (rounds) = 12;                         // (4 bytes) we fixed its at 12 0x0000000c best
+    // practice for balance between performance and security.
+    // h (state_vector) =                       // (64 bytes) to find out what it's should be?
+    // m (message_block) =                      // (128 bytes) enough for message sender address
+    // (20bytes) and a single value or a composite key (32 bytes)
+    // t (offset_counters) = 0;                 // (16 bytes) we fixed its to 0 0x0
+    // f (final_block_indicator_flag) = 1;      // (1 bytes) we fixed its to 1 0x1
+    // Hash.blake2bf(address, key, index);      // (64 bytes) it's produce 32bytes[2] which mean
+    // 512bit, we can use only one as the 'key'
     return UInt256.valueOf(1);
   }
 
-  // CalculateStorageSLot for Node
-  private UInt256 CalculateStorageSlot(
-      final Address address, final Bytes pointer, final UInt256 element, final UInt256 direction) {
-    // Hash.keccak256(address, pointer, element, direction); // convert into UInt256
-    return UInt256.valueOf(1);
+  // CalculateStorageSLot for the element
+  private UInt256 CalculateStorageSlot(final Address address, final Bytes key) {
+     return UInt256.fromBytes(Bytes32.wrap(Hash.keccak256(
+            Bytes.concatenate(address, key).toArray()
+        )));
   }
 
   // STATIC CALL FUNCTION
   private Bytes find(final MutableAccount address, final Bytes calldata) {
     // TODO:DLP calldata must carrying listId and element
+    // final Bytes key = Hash.keccak256(address, listId, element);
+    // return address.getStorageValueCalculateStorageSlot(address, key));
     return address.getStorageValue(UInt256.ZERO);
   }
 
   private Bytes front(final MutableAccount address) {
     // TODO:DLP calldata must carrying listId then return the first element of given listId
+    // final Bytes key = Hash.keccak256(address, listId, SENTINEL_NODE, true);
+    // return address.getStorageValueCalculateStorageSlot(address, key));
     return address.getStorageValue(UInt256.ZERO);
   }
 
   private Bytes middle(final MutableAccount address) {
     // TODO:DLP calldata must carrying the listId then return the middle element of given listId
+
+    // return address.getStorageValueCalculateStorageSlot(address, key));
     return address.getStorageValue(UInt256.ZERO);
   }
 
   private Bytes next(final MutableAccount address, final Bytes calldata) {
     // TODO:DLP calldata must carrying the listId and element then return the next element
+    // final Bytes key = Hash.keccak256(address, listId, element, true);
     return address.getStorageValue(UInt256.ZERO);
   }
 
   private Bytes previous(final MutableAccount address, final Bytes calldata) {
     // TODO:DLP calldata must carrying the listId and element then return the previous element
+    // final Bytes key = Hash.keccak256(address, listId, element, false);
     return address.getStorageValue(UInt256.ZERO);
   }
 
@@ -140,13 +157,13 @@ public class StatefulSortedCircularLinkedListPrecompiledContract
   }
 
   private Bytes maxSize() {
-    // TODO:DLP return for only contract that has been initialized list storage before, applied same
-    // maxSize to all listId
     return Uint256.valueOf(MAX_SIZE);
   }
 
   private Bytes back(final MutableAccount address, final Bytes calldata) {
     // TODO:DLP calldata must carrying the listId then return the last element of given listId
+    // final Bytes key = Hash.keccak256(address, listId, SENTINEL_NODE, false);
+    // return address.getStorageValueCalculateStorageSlot(address, key));
     return address.getStorageValue(UInt256.ZERO);
   }
 
@@ -178,15 +195,11 @@ public class StatefulSortedCircularLinkedListPrecompiledContract
         || function.equals(INSERT_SIGNATURE)
         || function.equals(LIST_SIGNATURE)
         || function.equals(REVERSE_LIST_SIGNATURE)) {
-      // for call function should be high
-      // TODO:DLP calculate from time and space complexity of algorithms
-      // calculate from iterator need to process
-      // size of list * static cost
-      // 100 is base gasUsed preventing rounds equal to zero
-      // return 100L + (size * 8);
+      // TODO:DLP for call function should be high calculate from time and space complexity of
+      // algorithms
       return 0L;
     } else {
-      // for static call function should be low
+      // TODO:D:T for static call function should be low, find the optimal number
       return 800L;
     }
   }
@@ -202,29 +215,26 @@ public class StatefulSortedCircularLinkedListPrecompiledContract
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     }
-    final Bytes calldata = input;
+    final Bytes function = input.slice(0, 4); // slice for function selector
+    final Bytes calldata = input.slice(4, input.size()); // slice for calldata
     Map<Bytes, Function<MutableAccount, PrecompileContractResult>> handlers = new HashMap<>();
+
+    handlers.put(BACK_SIGNATURE, (s) -> back(s, calldata));
     handlers.put(FIND_SIGNATURE, (s) -> find(s, calldata));
     handlers.put(FRONT_SIGNATURE, (s) -> front(s, calldata));
+    handlers.put(INSERT_SIGNATURE, (s) -> insert(s, calldata));
     handlers.put(LIST_SIGNATURE, (s) -> list(s, calldata));
-    handlers.put(REVERSE_LIST_SIGNATURE, (s) -> reverseList(s, calldata));
+    handlers.put(MAX_SIZE_SIGNATURE, (s) -> maxSize());
     handlers.put(MIDDLE_SIGNATURE, (s) -> middle(s, calldata));
     handlers.put(NEXT_SIGNATURE, (s) -> next(s, calldata));
     handlers.put(PREVIOUS_SIGNATURE, (s) -> previous(s, calldata));
-    handlers.put(SIZE_SIGNATURE, (s) -> size(s, calldata));
-    handlers.put(MAX_SIZE_SIGNATURE, (s) -> maxSize());
-    handlers.put(BACK_SIGNATURE, (s) -> back(s, calldata));
     handlers.put(REMOVE_SIGNATURE, (s) -> remove(s, calldata));
-    handlers.put(INSERT_SIGNATURE, (s) -> insert(s, calldata));
-
-    // function selector
-    final Bytes function = input.slice(0, 4);
+    handlers.put(REVERSE_LIST_SIGNATURE, (s) -> reverseList(s, calldata));
+    handlers.put(SIZE_SIGNATURE, (s) -> size(s, calldata));
 
     // fetch the appropriate handler based on the function selector
     Function<MutableAccount, PrecompileContractResult> handler = handlers.get(function);
 
-    // reset the map reference to null after usage
-    handlers = null;
     if (handler != null) {
       return PrecompileContractResult.success(handler.apply(sender));
     } else {
