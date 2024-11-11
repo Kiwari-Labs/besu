@@ -101,7 +101,9 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
     final Bytes slotKey = Bytes.concatenate(address, listId, element, directionBytes);
     // Apply keccak256 to the combined key to get the storage slot
     // Convert the resulting 32-byte hash into a UInt256
-    return UInt256.fromBytes(Hash.keccak256(slotKey));
+    LOG.info("calculateStorageSlot slot: {}", UInt256.fromBytes(Bytes32.leftPad(Hash.keccak256(slotKey))));
+
+    return UInt256.fromBytes(Bytes32.leftPad(Hash.keccak256(slotKey)));
   }
 
   // STATIC CALL FUNCTION
@@ -113,7 +115,7 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
     }
     final Address address = account.getAddress();
     final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
-    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32))); // Left pad
     final UInt256 previousNodeSlot = calculateStorageSlot(address, listId, element, false);
     final UInt256 nextNodeSlot = calculateStorageSlot(address, listId, element, true);
     final UInt256 previousNode = account.getStorageValue(previousNodeSlot);
@@ -147,7 +149,7 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
       return FALSE;
     }
     final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
-    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32))); // Left pad
     return account.getStorageValue(
         calculateStorageSlot(account.getAddress(), listId, element, true));
   }
@@ -158,7 +160,7 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
       return FALSE;
     }
     final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
-    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32))); // Left pad
     return account.getStorageValue(
         calculateStorageSlot(account.getAddress(), listId, element, false));
   }
@@ -214,8 +216,10 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
       return FALSE;
     }
     final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
-    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
-    final boolean exists = find(account, calldata).equals(FALSE);
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32))); // Left pad
+    LOG.info("listId {}",listId);
+    LOG.info("element {}",element);
+    final boolean exists = find(account, calldata).equals(TRUE);
     final UInt256 maxSize = UInt256.fromBytes(MAX_SIZE);
     final Address address = account.getAddress();
     UInt256 listSize = UInt256.fromBytes(size(account, listId));
@@ -229,7 +233,7 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
     UInt256 previousNodeSlot = calculateStorageSlot(address, listId, element, false);
     UInt256 nextNodeSlot = calculateStorageSlot(address, listId, element, true);
     if (listSize.equals(UInt256.ZERO)) {
-      account.setStorageValue(previousSentinelSlot, UInt256.fromBytes(SENTINEL));
+      account.setStorageValue(previousSentinelSlot, element);
       account.setStorageValue(nextSentinelSlot, element);
       account.setStorageValue(previousNodeSlot, UInt256.fromBytes(SENTINEL));
       account.setStorageValue(nextNodeSlot, UInt256.fromBytes(SENTINEL));
@@ -270,6 +274,7 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
         current = next;
       }
     }
+    LOG.info("Updated list size storage slot: {}, New list size: {}", UInt256.fromBytes(Hash.keccak256(listId)), listSize.add(1L));
     account.setStorageValue(UInt256.fromBytes(Hash.keccak256(listId)), listSize.add(1L));
     return TRUE;
   }
@@ -302,10 +307,10 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
     function.equals(INSERT_SIGNATURE) || function.equals(LIST_SIGNATURE)
     /*|| function.equals(REVERSE_LIST_SIGNATURE)*/ ) {
       // for call function should be high calculate from time and space complexity of algorithms
-      return 15000L;
+      return 3000L;
     } else {
       // for static call function should be low, find the optimal number
-      return 2000L;
+      return 1500L;
     }
   }
 
@@ -322,6 +327,9 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
     }
     final Bytes function = input.slice(0, 4); // slice for function selector
     final Bytes calldata = input.slice(4); // slice for calldata
+    LOG.info("function selector {}",function);
+    LOG.info("calldata {}",calldata);
+    LOG.info("calldata {}",calldata.size());
 
     if (function.equals(BACK_SIGNATURE)) {
       return PrecompileContractResult.success(back(account, calldata));
