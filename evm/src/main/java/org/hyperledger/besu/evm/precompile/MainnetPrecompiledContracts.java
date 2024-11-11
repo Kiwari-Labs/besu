@@ -50,7 +50,7 @@ public interface MainnetPrecompiledContracts {
         new StatefulPrecompiledContract(gasCalculator));
     registry.put(
         Address.fromHexString("0x0100000000000000000000000000000000000002"),
-        new StatefulSortedCircularLinkedListPrecompiledContract(gasCalculator));
+        new SCDLLPrecompiledContract(gasCalculator));
   }
 
   /**
