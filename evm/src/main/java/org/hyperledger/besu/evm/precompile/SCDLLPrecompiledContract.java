@@ -28,6 +28,7 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,24 +62,24 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
   // CALL FUNCTION SIGNATURE (mutate state)
-  private static final Bytes REMOVE_SIGNATURE =
-      Hash.keccak256(Bytes.of("remove(uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
+  // private static final Bytes REMOVE_SIGNATURE =
+  //     Hash.keccak256(Bytes.of("remove(uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes INSERT_SIGNATURE =
       Hash.keccak256(Bytes.of("insert(uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
 
   // STATIC CALL FUNCTION SIGNATURE (read)
+  private static final Bytes BACK_SIGNATURE =
+      Hash.keccak256(Bytes.of("back(uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes FIND_SIGNATURE =
       Hash.keccak256(Bytes.of("find(uint256, uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes FRONT_SIGNATURE =
       Hash.keccak256(Bytes.of("front(uint256)".getBytes(UTF_8))).slice(0, 4);
-  private static final Bytes BACK_SIGNATURE =
-      Hash.keccak256(Bytes.of("back(uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes LIST_SIGNATURE =
       Hash.keccak256(Bytes.of("list(uint256)".getBytes(UTF_8))).slice(0, 4);
-  private static final Bytes REVERSE_LIST_SIGNATURE =
-      Hash.keccak256(Bytes.of("rlist(uint256)".getBytes(UTF_8))).slice(0, 4);
-  private static final Bytes MIDDLE_SIGNATURE =
-      Hash.keccak256(Bytes.of("middle(uint256)".getBytes(UTF_8))).slice(0, 4);
+  // private static final Bytes REVERSE_LIST_SIGNATURE =
+  //     Hash.keccak256(Bytes.of("rlist(uint256)".getBytes(UTF_8))).slice(0, 4);
+  // private static final Bytes MIDDLE_SIGNATURE =
+  //     Hash.keccak256(Bytes.of("middle(uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes NEXT_SIGNATURE =
       Hash.keccak256(Bytes.of("next(uint256,uint256)".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes PREVIOUS_SIGNATURE =
@@ -96,8 +97,8 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
   private UInt256 calculateStorageSlot(
       final Address address, final Bytes listId, final Bytes element, final boolean direction) {
     // Include the listId and direction (0 for prev, 1 for next) as part of the key
-    final Bytes direction = direction ? TRUE : FALSE;
-    final Bytes slotKey = Bytes.concatenate(address, listId, element, direction);
+    final Bytes directionBytes = direction ? TRUE : FALSE;
+    final Bytes slotKey = Bytes.concatenate(address, listId, element, directionBytes);
     // Apply keccak256 to the combined key to get the storage slot
     // Convert the resulting 32-byte hash into a UInt256
     return UInt256.fromBytes(Hash.keccak256(slotKey));
@@ -110,42 +111,43 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
     if (calldata.size() < 64) {
       return FALSE;
     }
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
-    final UInt256 element = UInt256.fromBytes(calldata.slice(32, 64));
-    final UInt256 previousNodeSlot = calculateStorageSlot(account, listId, element, false);
-    final UInt256 nextNodeSlot = calculateStorageSlot(account, listId, element, true);
+    final Address address = account.getAddress();
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
+    final UInt256 previousNodeSlot = calculateStorageSlot(address, listId, element, false);
+    final UInt256 nextNodeSlot = calculateStorageSlot(address, listId, element, true);
     final UInt256 previousNode = account.getStorageValue(previousNodeSlot);
     final UInt256 nextNode = account.getStorageValue(nextNodeSlot);
     return (nextNode.equals(element) || previousNode.compareTo(UInt256.ZERO) > 0) ? TRUE : FALSE;
   }
 
   private Bytes front(final MutableAccount account, final Bytes calldata) {
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32)));
     return account.getStorageValue(
         calculateStorageSlot(account.getAddress(), listId, SENTINEL, true));
   }
 
   private Bytes back(final MutableAccount account, final Bytes calldata) {
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32)));
     return account.getStorageValue(
         calculateStorageSlot(account.getAddress(), listId, SENTINEL, false));
   }
 
-  private Bytes middle(final MutableAccount account) {
-    // TODO:DLP
-    // calldata must carrying the listId then return the middle element of given listId
-    // traversal half of size
-    // return account.getStorageValueCalculateStorageSlot(account, key));
-    return account.getStorageValue(UInt256.ZERO);
-  }
+  // private Bytes middle(final MutableAccount account) {
+  // TODO:DLP
+  // calldata must carrying the listId then return the middle element of given listId
+  // traversal half of size
+  // return account.getStorageValueCalculateStorageSlot(account, key));
+  //   return account.getStorageValue(UInt256.ZERO);
+  // }
 
   private Bytes next(final MutableAccount account, final Bytes calldata) {
     if (calldata.size() < 64) {
       // Invalid input, not enough data for two uint256 values
       return FALSE;
     }
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
-    final UInt256 element = UInt256.fromBytes(calldata.slice(32, 64));
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
     return account.getStorageValue(
         calculateStorageSlot(account.getAddress(), listId, element, true));
   }
@@ -155,14 +157,14 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
       // Invalid input, not enough data for two uint256 values
       return FALSE;
     }
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
-    final UInt256 element = UInt256.fromBytes(calldata.slice(32, 64));
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
     return account.getStorageValue(
         calculateStorageSlot(account.getAddress(), listId, element, false));
   }
 
   private Bytes size(final MutableAccount account, final Bytes calldata) {
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32)));
     if (calldata.size() < 32) {
       // Invalid input, not enough data for one uint256 values
       return FALSE;
@@ -175,88 +177,132 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
   }
 
   private Bytes list(final MutableAccount account, final Bytes calldata) {
-    // TODO:DLP
-    // calldata must carrying the listId then return the list
-    // Loop next from front
-    return account.getStorageValue(UInt256.ZERO);
+    if (calldata.size() < 32) {
+      return FALSE; // Invalid input
+    }
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32)));
+    final Address address = account.getAddress();
+    UInt256 current = UInt256.fromBytes(front(account, calldata));
+    if (current.equals(SENTINEL)) {
+      return Bytes.EMPTY;
+    }
+    Bytes data = Bytes.EMPTY;
+    int count = 0;
+    while (!current.equals(SENTINEL) && UInt256.valueOf(count).compareTo(MAX_SIZE) < 0) {
+      data = Bytes.concatenate(data, current); // Concatenate `current` into `data`
+      current =
+          UInt256.fromBytes(
+              account.getStorageValue(calculateStorageSlot(address, listId, current, true)));
+      count++;
+    }
+    return data;
   }
 
-  private Bytes reverseList(final MutableAccount account, final Bytes calldata) {
-    // TODO:DLP
-    // calldata must carrying the listId and then return the list in reverse
-    // Loop prev from back
-    return account.getStorageValue(UInt256.ZERO);
-  }
+  // private Bytes reverseList(final MutableAccount account, final Bytes calldata) {
+  //   if (calldata.size() < 32) {
+  //     return FALSE; // Invalid input, not enough data for listId
+  //   }
+  //   final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32)));
+  //   // Loop prev from back
+  //   return account.getStorageValue(UInt256.ZERO);
+  // }
 
   // CALL FUNCTION
   private Bytes insert(final MutableAccount account, final Bytes calldata) {
-    // TODO:DLP
-    // calldata must carrying the listId and element then perform insert
     if (calldata.size() < 64) {
       // Invalid input, not enough data for two uint256 values
       return FALSE;
     }
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
-    final UInt256 element = UInt256.fromBytes(calldata.slice(32, 64));
+    final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32))); // Left pad
+    final UInt256 element = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(32, 64))); // Left pad
     final boolean exists = find(account, calldata).equals(FALSE);
     final UInt256 maxSize = UInt256.fromBytes(MAX_SIZE);
-    UInt256 listSize = UInt256.fromBytes(size(account, listId));
     final Address address = account.getAddress();
-
+    UInt256 listSize = UInt256.fromBytes(size(account, listId));
     if (exists || listSize.compareTo(maxSize) >= 0) {
       return FALSE; // Element exists or size limit exceeded
     }
     UInt256 front = UInt256.fromBytes(front(account, calldata));
     UInt256 back = UInt256.fromBytes(back(account, calldata));
+    UInt256 previousSentinelSlot = calculateStorageSlot(address, listId, SENTINEL, false);
+    UInt256 nextSentinelSlot = calculateStorageSlot(address, listId, SENTINEL, true);
+    UInt256 previousNodeSlot = calculateStorageSlot(address, listId, element, false);
+    UInt256 nextNodeSlot = calculateStorageSlot(address, listId, element, true);
     if (listSize.equals(UInt256.ZERO)) {
-      UInt256 previousNodeSlot = calculateStorageSlot(address, listId, element, false);
-      UInt256 nextNodeSlot = calculateStorageSlot(address, listId, element, true);
-      UInt256 previousSentinelSlot = calculateStorageSlot(address, listId, SENTINEL, false);
-      UInt256 nextSentinelSlot = calculateStorageSlot(address, listId, SENTINEL, true);
-      account.setStorageValue(previousNodeSlot, SENTINEL);
-      account.setStorageValue(nextNodeSlot, SENTINEL);
-      account.setStorageValue(previousSentinelSlot, element);
+      account.setStorageValue(previousSentinelSlot, UInt256.fromBytes(SENTINEL));
       account.setStorageValue(nextSentinelSlot, element);
+      account.setStorageValue(previousNodeSlot, UInt256.fromBytes(SENTINEL));
+      account.setStorageValue(nextNodeSlot, UInt256.fromBytes(SENTINEL));
     } else if (element.compareTo(front) < 0) {
-      // TODO:DLP
+      UInt256 oldFrontSlot = calculateStorageSlot(address, listId, front, false);
+      account.setStorageValue(nextSentinelSlot, element);
+      account.setStorageValue(oldFrontSlot, element);
+      account.setStorageValue(previousNodeSlot, UInt256.fromBytes(SENTINEL));
+      account.setStorageValue(nextNodeSlot, front);
+
     } else if (element.compareTo(back) > 0) {
-      // TODO:DLP
+      UInt256 oldBackSlot = calculateStorageSlot(address, listId, front, true);
+      account.setStorageValue(previousSentinelSlot, element);
+      account.setStorageValue(oldBackSlot, element);
+      account.setStorageValue(previousNodeSlot, back);
+      account.setStorageValue(nextNodeSlot, UInt256.fromBytes(SENTINEL));
     } else {
-      // TODO:DLP
+      UInt256 current = front;
+      while (current.compareTo(back) < 0) {
+        UInt256 next =
+            UInt256.fromBytes(
+                account.getStorageValue(calculateStorageSlot(address, listId, current, true)));
+        if (element.compareTo(current) > 0 && element.compareTo(next) < 0) {
+          // We found the correct position to insert between `current` and `next`
+          UInt256 previous =
+              UInt256.fromBytes(
+                  account.getStorageValue(calculateStorageSlot(address, listId, current, false)));
+
+          // Insert element between `current` and `next`
+          account.setStorageValue(previousNodeSlot, previous);
+          account.setStorageValue(nextNodeSlot, next);
+          account.setStorageValue(calculateStorageSlot(address, listId, current, true), element);
+          account.setStorageValue(calculateStorageSlot(address, listId, next, false), element);
+          account.setStorageValue(calculateStorageSlot(address, listId, element, false), previous);
+          account.setStorageValue(calculateStorageSlot(address, listId, element, true), next);
+          break;
+        }
+        current = next;
+      }
     }
     account.setStorageValue(UInt256.fromBytes(Hash.keccak256(listId)), listSize.add(1L));
     return TRUE;
   }
 
-  private Bytes remove(final MutableAccount account, final Bytes calldata) {
-    // TODO:DLP
-    // calldata must carrying the listId and element then perform remove
-    if (calldata.size() < 64) {
-      // Invalid input, not enough data for two uint256 values
-      return FALSE;
-    }
-    final UInt256 listId = UInt256.fromBytes(calldata.slice(0, 32));
-    final UInt256 newElement = UInt256.fromBytes(calldata.slice(32, 64));
-    UInt256 listSize = UInt256.fromBytes(size(account, listId));
-    if (find(account, calldata).compareTo(FALSE) == 0) {
-      return FALSE;
-    } else {
-      // do remove
-      // size--;
-      account.setStorageValue(UInt256.fromBytes(Hash.keccak256(listId)), listSize.subtract(1L));
-      return TRUE;
-    }
-  }
+  // private Bytes remove(final MutableAccount account, final Bytes calldata) {
+  //   // TODO:DLP
+  //   // calldata must carrying the listId and element then perform remove
+  //   if (calldata.size() < 64) {
+  //     // Invalid input, not enough data for two uint256 values
+  //     return FALSE;
+  //   }
+  //   final UInt256 listId = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 32)));
+  //   final UInt256 newElement = UInt256.fromBytes(calldata.slice(32, 64));
+  //   UInt256 listSize = UInt256.fromBytes(size(account, listId));
+  //   if (find(account, calldata).compareTo(FALSE) == 0) {
+  //     return FALSE;
+  //   } else {
+  //     // do remove
+  //     // size--;
+  //     account.setStorageValue(UInt256.fromBytes(Hash.keccak256(listId)), listSize.subtract(1L));
+  //     return TRUE;
+  //   }
+  // }
 
   @Override
   public long gasRequirement(final Bytes input) {
     final Bytes function = input.slice(0, 4);
-    if (function.equals(REMOVE_SIGNATURE)
-        || function.equals(INSERT_SIGNATURE)
-        || function.equals(LIST_SIGNATURE)
-        || function.equals(REVERSE_LIST_SIGNATURE)) {
+    if (
+    /*function.equals(REMOVE_SIGNATURE)*/
+    function.equals(INSERT_SIGNATURE) || function.equals(LIST_SIGNATURE)
+    /*|| function.equals(REVERSE_LIST_SIGNATURE)*/ ) {
       // for call function should be high calculate from time and space complexity of algorithms
-      return 20000L;
+      return 15000L;
     } else {
       // for static call function should be low, find the optimal number
       return 2000L;
@@ -283,16 +329,20 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
       return PrecompileContractResult.success(find(account, calldata));
     } else if (function.equals(FRONT_SIGNATURE)) {
       return PrecompileContractResult.success(front(account, calldata));
+    } else if (function.equals(LIST_SIGNATURE)) {
+      return PrecompileContractResult.success(list(account, calldata));
     } else if (function.equals(MAX_SIZE_SIGNATURE)) {
       return PrecompileContractResult.success(maxSize());
     } else if (function.equals(NEXT_SIGNATURE)) {
       return PrecompileContractResult.success(next(account, calldata));
     } else if (function.equals(PREVIOUS_SIGNATURE)) {
       return PrecompileContractResult.success(previous(account, calldata));
-    } else if (function.equals(REMOVE_SIGNATURE)) {
-      return PrecompileContractResult.success(remove(account, calldata));
-    } else if (function.equals(REVERSE_LIST_SIGNATURE)) {
-      return PrecompileContractResult.success(reverseList(account, calldata));
+    } else if (function.equals(INSERT_SIGNATURE)) {
+      return PrecompileContractResult.success(insert(account, calldata));
+      // } else if (function.equals(REMOVE_SIGNATURE)) {
+      //   return PrecompileContractResult.success(remove(account, calldata));
+      // } else if (function.equals(REVERSE_LIST_SIGNATURE)) {
+      //   return PrecompileContractResult.success(reverseList(account, calldata));
     } else if (function.equals(SIZE_SIGNATURE)) {
       return PrecompileContractResult.success(size(account, calldata));
     } else {
