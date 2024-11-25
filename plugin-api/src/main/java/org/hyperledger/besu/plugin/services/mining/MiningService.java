@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,8 +12,16 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.plugin;
+package org.hyperledger.besu.plugin.services.mining;
 
-/** Deprecated in favor of the more precisely named ServiceManager interface. */
-@Deprecated(since = "24.11.0", forRemoval = true)
-public interface BesuContext extends ServiceManager {}
+import org.hyperledger.besu.plugin.services.BesuService;
+
+/** The MiningService interface provides methods to start and stop the mining process. */
+public interface MiningService extends BesuService {
+
+  /** Starts the mining process. */
+  void start();
+
+  /** Stops the mining process. */
+  void stop();
+}
