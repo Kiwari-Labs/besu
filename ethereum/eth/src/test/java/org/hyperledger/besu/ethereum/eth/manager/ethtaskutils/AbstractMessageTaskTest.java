@@ -33,9 +33,11 @@ import org.hyperledger.besu.ethereum.eth.manager.EthMessages;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeer;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManager;
+import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestBuilder;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestUtil;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.manager.RespondingEthPeer;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutor;
 import org.hyperledger.besu.ethereum.eth.manager.task.EthTask;
 import org.hyperledger.besu.ethereum.eth.sync.SyncMode;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
@@ -63,6 +65,7 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 /**
  * @param <T> The type of data being requested from the network
@@ -91,6 +94,7 @@ public abstract class AbstractMessageTaskTest<T, R> {
   protected EthContext ethContext;
   protected EthPeers ethPeers;
   protected TransactionPool transactionPool;
+  protected PeerTaskExecutor peerTaskExecutor;
   protected AtomicBoolean peersDoTimeout;
   protected AtomicInteger peerCountToTimeout;
 
@@ -130,7 +134,8 @@ public abstract class AbstractMessageTaskTest<T, R> {
     final EthScheduler ethScheduler =
         new DeterministicEthScheduler(
             () -> peerCountToTimeout.getAndDecrement() > 0 || peersDoTimeout.get());
-    ethContext = new EthContext(ethPeers, ethMessages, ethScheduler);
+    peerTaskExecutor = Mockito.mock(PeerTaskExecutor.class);
+    ethContext = new EthContext(ethPeers, ethMessages, ethScheduler, peerTaskExecutor);
     final SyncState syncState = new SyncState(blockchain, ethContext.getEthPeers());
     transactionPool =
         TransactionPoolFactory.createTransactionPool(
@@ -146,15 +151,16 @@ public abstract class AbstractMessageTaskTest<T, R> {
     transactionPool.setEnabled();
 
     ethProtocolManager =
-        EthProtocolManagerTestUtil.create(
-            blockchain,
-            ethScheduler,
-            protocolContext.getWorldStateArchive(),
-            transactionPool,
-            EthProtocolConfiguration.defaultConfig(),
-            ethPeers,
-            ethMessages,
-            ethContext);
+        EthProtocolManagerTestBuilder.builder()
+            .setProtocolSchedule(protocolSchedule)
+            .setBlockchain(blockchain)
+            .setEthScheduler(ethScheduler)
+            .setTransactionPool(transactionPool)
+            .setEthereumWireProtocolConfiguration(EthProtocolConfiguration.defaultConfig())
+            .setEthPeers(ethPeers)
+            .setEthMessages(ethMessages)
+            .setEthContext(ethContext)
+            .build();
   }
 
   protected abstract T generateDataToBeRequested();
