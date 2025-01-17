@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import org.hyperledger.besu.config.StubGenesisConfigOptions;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.api.ApiConfiguration;
+import org.hyperledger.besu.ethereum.api.graphql.GraphQLConfiguration;
 import org.hyperledger.besu.ethereum.api.jsonrpc.health.HealthService;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.filter.FilterManager;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.JsonRpcMethod;
@@ -36,7 +37,7 @@ import org.hyperledger.besu.ethereum.api.tls.SelfSignedP12Certificate;
 import org.hyperledger.besu.ethereum.api.tls.TlsConfiguration;
 import org.hyperledger.besu.ethereum.blockcreation.PoWMiningCoordinator;
 import org.hyperledger.besu.ethereum.chain.BadBlockManager;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.ethereum.core.PrivacyParameters;
 import org.hyperledger.besu.ethereum.core.Synchronizer;
 import org.hyperledger.besu.ethereum.eth.EthProtocol;
@@ -47,6 +48,7 @@ import org.hyperledger.besu.ethereum.p2p.network.P2PNetwork;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Capability;
 import org.hyperledger.besu.ethereum.permissioning.AccountLocalConfigPermissioningController;
 import org.hyperledger.besu.ethereum.permissioning.NodeLocalConfigPermissioningController;
+import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.metrics.prometheus.MetricsConfiguration;
 import org.hyperledger.besu.nat.NatService;
@@ -85,7 +87,9 @@ public class JsonRpcHttpServiceTlsClientAuthTest {
   protected static final Vertx vertx = Vertx.vertx();
 
   private static final String JSON_HEADER = "application/json; charset=utf-8";
-  private static final String CLIENT_VERSION = "TestClientVersion/0.1.0";
+  private static final String CLIENT_NODE_NAME = "TestClientVersion/0.1.0";
+  private static final String CLIENT_VERSION = "0.1.0";
+  private static final String CLIENT_COMMIT = "12345678";
   private static final BigInteger CHAIN_ID = BigInteger.valueOf(123);
 
   private static final NatService natService = new NatService(Optional.empty());
@@ -114,7 +118,9 @@ public class JsonRpcHttpServiceTlsClientAuthTest {
     rpcMethods =
         new JsonRpcMethodsFactory()
             .methods(
+                CLIENT_NODE_NAME,
                 CLIENT_VERSION,
+                CLIENT_COMMIT,
                 CHAIN_ID,
                 new StubGenesisConfigOptions(),
                 peerDiscoveryMock,
@@ -122,14 +128,14 @@ public class JsonRpcHttpServiceTlsClientAuthTest {
                 synchronizer,
                 MainnetProtocolSchedule.fromConfig(
                     new StubGenesisConfigOptions().constantinopleBlock(0).chainId(CHAIN_ID),
-                    MiningParameters.MINING_DISABLED,
+                    MiningConfiguration.MINING_DISABLED,
                     new BadBlockManager(),
                     false,
                     new NoOpMetricsSystem()),
                 mock(ProtocolContext.class),
                 mock(FilterManager.class),
                 mock(TransactionPool.class),
-                mock(MiningParameters.class),
+                mock(MiningConfiguration.class),
                 mock(PoWMiningCoordinator.class),
                 new NoOpMetricsSystem(),
                 supportedCapabilities,
@@ -140,13 +146,15 @@ public class JsonRpcHttpServiceTlsClientAuthTest {
                 mock(JsonRpcConfiguration.class),
                 mock(WebSocketConfiguration.class),
                 mock(MetricsConfiguration.class),
+                mock(GraphQLConfiguration.class),
                 natService,
                 Collections.emptyMap(),
                 folder,
                 mock(EthPeers.class),
                 vertx,
                 mock(ApiConfiguration.class),
-                Optional.empty());
+                Optional.empty(),
+                mock(TransactionSimulator.class));
 
     System.setProperty("javax.net.ssl.trustStore", CLIENT_AS_CA_CERT.getKeyStoreFile().toString());
     System.setProperty(

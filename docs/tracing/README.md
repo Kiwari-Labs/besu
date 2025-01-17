@@ -1,8 +1,8 @@
 # Tracing
 
-Hyperledger Besu integrates with the [open-telemetry](https://open-telemetry.io) project to integrate tracing reporting.
+Hyperledger Besu integrates with the [open-telemetry](https://opentelemetry.io/) project to integrate tracing reporting.
 
-This allows to report all JSON-RPC traffic as traces.
+This allows reporting all JSON-RPC traffic as traces.
 
 To try out this example, start the Open Telemetry Collector and the Zipkin service with:
 
@@ -21,4 +21,4 @@ Open the Zipkin UI by browsing to http://localhost:9411/
 You will be able to see the detail of your traces.
 
 References:
-* [OpenTelemetry Environment Variable Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/sdk-environment-variables.md)
+* [OpenTelemetry Environment Variable Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md)

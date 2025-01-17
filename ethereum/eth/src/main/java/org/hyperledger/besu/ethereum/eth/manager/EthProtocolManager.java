@@ -107,7 +107,8 @@ public class EthProtocolManager implements ProtocolManager, MinedBlockObserver {
     this.ethMessages = ethMessages;
     this.ethContext = ethContext;
 
-    this.blockBroadcaster = new BlockBroadcaster(ethContext);
+    this.blockBroadcaster =
+        new BlockBroadcaster(ethContext, ethereumWireProtocolConfiguration.getMaxMessageSize());
 
     this.supportedCapabilities =
         calculateCapabilities(synchronizerConfiguration, ethereumWireProtocolConfiguration);
@@ -336,7 +337,6 @@ public class EthProtocolManager implements ProtocolManager, MinedBlockObserver {
   public void handleNewConnection(final PeerConnection connection) {
     ethPeers.registerNewConnection(connection, peerValidators);
     final EthPeer peer = ethPeers.peer(connection);
-
     final Capability cap = connection.capability(getSupportedProtocol());
     final ForkId latestForkId =
         cap.getVersion() >= 64 ? forkIdManager.getForkIdForChainHead() : null;

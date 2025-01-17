@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.eth.manager.EthContext;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutor;
 import org.hyperledger.besu.ethereum.eth.sync.PivotBlockSelector;
 import org.hyperledger.besu.ethereum.eth.sync.SyncMode;
 import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
@@ -35,6 +36,7 @@ import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.BonsaiWorldSt
 import org.hyperledger.besu.ethereum.trie.forest.storage.ForestWorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateStorageCoordinator;
+import org.hyperledger.besu.metrics.SyncDurationMetrics;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
 
@@ -70,6 +72,7 @@ public class FastDownloaderFactoryTest {
   @Mock private ProtocolContext protocolContext;
   @Mock private MetricsSystem metricsSystem;
   @Mock private EthContext ethContext;
+  @Mock private PeerTaskExecutor peerTaskExecutor;
   @Mock private SyncState syncState;
   @Mock private Clock clock;
   @Mock private Path dataDirectory;
@@ -113,9 +116,11 @@ public class FastDownloaderFactoryTest {
                     protocolContext,
                     metricsSystem,
                     ethContext,
+                    peerTaskExecutor,
                     worldStateStorageCoordinator,
                     syncState,
-                    clock))
+                    clock,
+                    SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -137,9 +142,11 @@ public class FastDownloaderFactoryTest {
             protocolContext,
             metricsSystem,
             ethContext,
+            peerTaskExecutor,
             worldStateStorageCoordinator,
             syncState,
-            clock);
+            clock,
+            SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS);
     assertThat(result).isEmpty();
   }
 
@@ -164,9 +171,11 @@ public class FastDownloaderFactoryTest {
         protocolContext,
         metricsSystem,
         ethContext,
+        peerTaskExecutor,
         worldStateStorageCoordinator,
         syncState,
-        clock);
+        clock,
+        SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS);
 
     verify(mutableBlockchain).getChainHeadBlockNumber();
   }
@@ -198,9 +207,11 @@ public class FastDownloaderFactoryTest {
         protocolContext,
         metricsSystem,
         ethContext,
+        peerTaskExecutor,
         worldStateStorageCoordinator,
         syncState,
-        clock);
+        clock,
+        SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS);
 
     verify(worldStateKeyValueStorage).clear();
     assertThat(Files.exists(stateQueueDir)).isFalse();
@@ -234,9 +245,11 @@ public class FastDownloaderFactoryTest {
                     protocolContext,
                     metricsSystem,
                     ethContext,
+                    peerTaskExecutor,
                     worldStateStorageCoordinator,
                     syncState,
-                    clock))
+                    clock,
+                    SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS))
         .isInstanceOf(IllegalStateException.class);
   }
 

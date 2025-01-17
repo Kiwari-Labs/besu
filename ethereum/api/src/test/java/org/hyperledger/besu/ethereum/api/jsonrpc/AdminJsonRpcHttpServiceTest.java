@@ -58,13 +58,13 @@ public class AdminJsonRpcHttpServiceTest extends JsonRpcHttpServiceTestBase {
     final List<EthPeer> peerList = new ArrayList<>();
     final PeerInfo info1 =
         new PeerInfo(
-            4, CLIENT_VERSION, caps, 30302, Bytes.fromHexString(String.format("%0128x", 1)));
+            4, CLIENT_NODE_NAME, caps, 30302, Bytes.fromHexString(String.format("%0128x", 1)));
     final PeerInfo info2 =
         new PeerInfo(
-            4, CLIENT_VERSION, caps, 60302, Bytes.fromHexString(String.format("%0128x", 2)));
+            4, CLIENT_NODE_NAME, caps, 60302, Bytes.fromHexString(String.format("%0128x", 2)));
     final PeerInfo info3 =
         new PeerInfo(
-            4, CLIENT_VERSION, caps, 60303, Bytes.fromHexString(String.format("%0128x", 3)));
+            4, CLIENT_NODE_NAME, caps, 60303, Bytes.fromHexString(String.format("%0128x", 3)));
     final InetSocketAddress addr30301 = new InetSocketAddress("localhost", 30301);
     final InetSocketAddress addr30302 = new InetSocketAddress("localhost", 30302);
     final InetSocketAddress addr60301 = new InetSocketAddress("localhost", 60301);
@@ -74,7 +74,6 @@ public class AdminJsonRpcHttpServiceTest extends JsonRpcHttpServiceTestBase {
     peerList.add(
         new EthPeer(
             MockPeerConnection.create(info1, addr60301, addr30302),
-            "eth",
             c -> {},
             List.of(),
             EthProtocolConfiguration.DEFAULT_MAX_MESSAGE_SIZE,
@@ -84,7 +83,6 @@ public class AdminJsonRpcHttpServiceTest extends JsonRpcHttpServiceTestBase {
     peerList.add(
         new EthPeer(
             MockPeerConnection.create(info2, addr30301, addr60302),
-            "eth",
             c -> {},
             List.of(),
             EthProtocolConfiguration.DEFAULT_MAX_MESSAGE_SIZE,
@@ -94,7 +92,6 @@ public class AdminJsonRpcHttpServiceTest extends JsonRpcHttpServiceTestBase {
     peerList.add(
         new EthPeer(
             MockPeerConnection.create(info3, addr30301, addr60303),
-            "eth",
             c -> {},
             List.of(),
             EthProtocolConfiguration.DEFAULT_MAX_MESSAGE_SIZE,

@@ -19,6 +19,7 @@ import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.Trac
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.BlockParameter;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.TraceTypeParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.processor.TransactionTrace;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
@@ -32,7 +33,6 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.internal.results.tracing.vm.VmT
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.debug.TraceOptions;
-import org.hyperledger.besu.ethereum.mainnet.ImmutableTransactionValidationParams;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.TransactionValidationParams;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
@@ -67,7 +67,7 @@ public abstract class AbstractTraceByBlock extends AbstractBlockParameterMethod
     final Optional<BlockParameter> maybeBlockParameter;
     try {
       maybeBlockParameter = request.getOptionalParameter(2, BlockParameter.class);
-    } catch (Exception e) { // TODO:replace with JsonRpcParameter.JsonRpcParameterException
+    } catch (JsonRpcParameterException e) {
       throw new InvalidJsonRpcParameters(
           "Invalid block parameter (index 2)", RpcErrorType.INVALID_BLOCK_PARAMS, e);
     }
@@ -116,9 +116,7 @@ public abstract class AbstractTraceByBlock extends AbstractBlockParameterMethod
   }
 
   protected TransactionValidationParams buildTransactionValidationParams() {
-    return ImmutableTransactionValidationParams.builder()
-        .from(TransactionValidationParams.transactionSimulator())
-        .build();
+    return TransactionValidationParams.transactionSimulator();
   }
 
   protected TraceOptions buildTraceOptions(final Set<TraceTypeParameter.TraceType> traceTypes) {

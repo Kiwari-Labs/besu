@@ -15,11 +15,11 @@
 package org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.engine;
 
 import static java.util.stream.Collectors.toList;
+import static org.hyperledger.besu.datatypes.HardforkId.MainnetHardforkId.CANCUN;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.ExecutionEngineJsonRpcMethod.EngineStatus.INVALID;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.ExecutionEngineJsonRpcMethod.EngineStatus.SYNCING;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.ExecutionEngineJsonRpcMethod.EngineStatus.VALID;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.engine.WithdrawalsValidatorProvider.getWithdrawalsValidator;
-import static org.hyperledger.besu.ethereum.mainnet.HardforkId.MainnetHardforkId.CANCUN;
 
 import org.hyperledger.besu.consensus.merge.blockcreation.MergeMiningCoordinator;
 import org.hyperledger.besu.consensus.merge.blockcreation.MergeMiningCoordinator.ForkchoiceResult;
@@ -27,9 +27,11 @@ import org.hyperledger.besu.consensus.merge.blockcreation.PayloadIdentifier;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.ExecutionEngineJsonRpcMethod;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.EngineForkchoiceUpdatedParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.EnginePayloadAttributesParameter;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.WithdrawalParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
@@ -80,10 +82,25 @@ public abstract class AbstractEngineForkchoiceUpdated extends ExecutionEngineJso
 
     final Object requestId = requestContext.getRequest().getId();
 
-    final EngineForkchoiceUpdatedParameter forkChoice =
-        requestContext.getRequiredParameter(0, EngineForkchoiceUpdatedParameter.class);
-    final Optional<EnginePayloadAttributesParameter> maybePayloadAttributes =
-        requestContext.getOptionalParameter(1, EnginePayloadAttributesParameter.class);
+    final EngineForkchoiceUpdatedParameter forkChoice;
+    try {
+      forkChoice = requestContext.getRequiredParameter(0, EngineForkchoiceUpdatedParameter.class);
+    } catch (JsonRpcParameterException e) {
+      throw new InvalidJsonRpcParameters(
+          "Invalid engine forkchoice updated parameter (index 0)",
+          RpcErrorType.INVALID_ENGINE_FORKCHOICE_UPDATED_PARAMS,
+          e);
+    }
+    final Optional<EnginePayloadAttributesParameter> maybePayloadAttributes;
+    try {
+      maybePayloadAttributes =
+          requestContext.getOptionalParameter(1, EnginePayloadAttributesParameter.class);
+    } catch (JsonRpcParameterException e) {
+      throw new InvalidJsonRpcParameters(
+          "Invalid engine payload attributes parameter (index 1)",
+          RpcErrorType.INVALID_ENGINE_FORKCHOICE_UPDATED_PAYLOAD_ATTRIBUTES,
+          e);
+    }
 
     LOG.debug("Forkchoice parameters {}", forkChoice);
     mergeContext
@@ -170,7 +187,7 @@ public abstract class AbstractEngineForkchoiceUpdated extends ExecutionEngineJso
       if (!getWithdrawalsValidator(
               protocolSchedule.get(), newHead, maybePayloadAttributes.get().getTimestamp())
           .validateWithdrawals(withdrawals)) {
-        return new JsonRpcErrorResponse(requestId, getInvalidParametersError());
+        return new JsonRpcErrorResponse(requestId, RpcErrorType.INVALID_WITHDRAWALS_PARAMS);
       }
     }
 
@@ -372,8 +389,7 @@ public abstract class AbstractEngineForkchoiceUpdated extends ExecutionEngineJso
 
   // fcU calls are synchronous, no need to make volatile
   private long lastFcuInfoLog = System.currentTimeMillis();
-  private static final String logMessage =
-      "{} for fork-choice-update: head: {}, finalized: {}, safeBlockHash: {}";
+  private static final String logMessage = "FCU({}) | head: {} | finalized: {} | safeBlockHash: {}";
 
   private void logForkchoiceUpdatedCall(
       final EngineStatus status, final EngineForkchoiceUpdatedParameter forkChoice) {
@@ -396,9 +412,9 @@ public abstract class AbstractEngineForkchoiceUpdated extends ExecutionEngineJso
     LOG.info(
         logMessage,
         status.name(),
-        forkChoice.getHeadBlockHash(),
-        forkChoice.getFinalizedBlockHash(),
-        forkChoice.getSafeBlockHash());
+        forkChoice.getHeadBlockHash().toShortLogString(),
+        forkChoice.getFinalizedBlockHash().toShortLogString(),
+        forkChoice.getSafeBlockHash().toShortLogString());
   }
 
   private void logAtDebug(

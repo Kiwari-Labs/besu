@@ -37,7 +37,6 @@ import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.worldview.BonsaiWorldState;
 import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.worldview.BonsaiWorldStateUpdateAccumulator;
 import org.hyperledger.besu.ethereum.vm.CachingBlockHashLookup;
-import org.hyperledger.besu.evm.gascalculator.CancunGasCalculator;
 import org.hyperledger.besu.evm.operation.BlockHashOperation;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldState;
@@ -136,6 +135,8 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
             blockHashLookup,
             blobGasPrice);
 
+    boolean parallelizedTxFound = false;
+    int nbParallelTx = 0;
     for (int i = 0; i < transactions.size(); i++) {
       final Transaction transaction = transactions.get(i);
       if (!hasAvailableBlockBudget(blockHeader, transaction, currentGasUsed)) {
@@ -174,13 +175,21 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
       currentGasUsed += transaction.getGasLimit() - transactionProcessingResult.getGasRemaining();
       if (transaction.getVersionedHashes().isPresent()) {
         currentBlobGasUsed +=
-            (transaction.getVersionedHashes().get().size() * CancunGasCalculator.BLOB_GAS_PER_BLOB);
+            (transaction.getVersionedHashes().get().size()
+                * protocolSpec.getGasCalculator().getBlobGasPerBlob());
       }
 
       final TransactionReceipt transactionReceipt =
           transactionReceiptFactory.create(
               transaction.getType(), transactionProcessingResult, worldState, currentGasUsed);
       receipts.add(transactionReceipt);
+      if (!parallelizedTxFound
+          && transactionProcessingResult.getIsProcessedInParallel().isPresent()) {
+        parallelizedTxFound = true;
+        nbParallelTx = 1;
+      } else if (transactionProcessingResult.getIsProcessedInParallel().isPresent()) {
+        nbParallelTx++;
+      }
     }
     if (blockHeader.getBlobGasUsed().isPresent()
         && currentBlobGasUsed != blockHeader.getBlobGasUsed().get()) {
@@ -218,7 +227,7 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
               blockHashLookup,
               OperationTracer.NO_TRACING);
 
-      maybeRequests = requestProcessor.get().process(context);
+      maybeRequests = Optional.of(requestProcessor.get().process(context));
     }
 
     if (!rewardCoinbase(worldState, blockHeader, ommers, skipZeroBlockRewards)) {
@@ -243,7 +252,8 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
     }
 
     return new BlockProcessingResult(
-        Optional.of(new BlockProcessingOutputs(worldState, receipts, maybeRequests)));
+        Optional.of(new BlockProcessingOutputs(worldState, receipts, maybeRequests)),
+        parallelizedTxFound ? Optional.of(nbParallelTx) : Optional.empty());
   }
 
   protected Optional<PreprocessingContext> runBlockPreProcessing(

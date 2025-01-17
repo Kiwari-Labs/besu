@@ -19,6 +19,7 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -29,21 +30,22 @@ import java.util.Optional;
  */
 public class EVMWorldUpdater implements WorldUpdater {
   private final WorldUpdater rootWorldUpdater;
-  private final AuthorizedCodeService authorizedCodeService;
+  private final DelegatedCodeService delegatedCodeService;
 
   /**
    * Instantiates a new EVM world updater.
    *
    * @param rootWorldUpdater the root world updater
+   * @param gasCalculator the gas calculator to check for precompiles.
    */
-  public EVMWorldUpdater(final WorldUpdater rootWorldUpdater) {
-    this(rootWorldUpdater, new AuthorizedCodeService());
+  public EVMWorldUpdater(final WorldUpdater rootWorldUpdater, final GasCalculator gasCalculator) {
+    this(rootWorldUpdater, new DelegatedCodeService(gasCalculator));
   }
 
   private EVMWorldUpdater(
-      final WorldUpdater rootWorldUpdater, final AuthorizedCodeService authorizedCodeService) {
+      final WorldUpdater rootWorldUpdater, final DelegatedCodeService delegatedCodeService) {
     this.rootWorldUpdater = rootWorldUpdater;
-    this.authorizedCodeService = authorizedCodeService;
+    this.delegatedCodeService = delegatedCodeService;
   }
 
   /**
@@ -51,38 +53,36 @@ public class EVMWorldUpdater implements WorldUpdater {
    *
    * @return the authorized code service
    */
-  public AuthorizedCodeService authorizedCodeService() {
-    return authorizedCodeService;
+  public DelegatedCodeService authorizedCodeService() {
+    return delegatedCodeService;
   }
 
   @Override
   public MutableAccount createAccount(final Address address, final long nonce, final Wei balance) {
-    return authorizedCodeService.processMutableAccount(
-        this, rootWorldUpdater.createAccount(address, nonce, balance), address);
+    return delegatedCodeService.processMutableAccount(
+        this, rootWorldUpdater.createAccount(address, nonce, balance));
   }
 
   @Override
   public MutableAccount getAccount(final Address address) {
-    return authorizedCodeService.processMutableAccount(
-        this, rootWorldUpdater.getAccount(address), address);
+    return delegatedCodeService.processMutableAccount(this, rootWorldUpdater.getAccount(address));
   }
 
   @Override
   public MutableAccount getOrCreate(final Address address) {
-    return authorizedCodeService.processMutableAccount(
-        this, rootWorldUpdater.getOrCreate(address), address);
+    return delegatedCodeService.processMutableAccount(this, rootWorldUpdater.getOrCreate(address));
   }
 
   @Override
   public MutableAccount getOrCreateSenderAccount(final Address address) {
-    return authorizedCodeService.processMutableAccount(
-        this, rootWorldUpdater.getOrCreateSenderAccount(address), address);
+    return delegatedCodeService.processMutableAccount(
+        this, rootWorldUpdater.getOrCreateSenderAccount(address));
   }
 
   @Override
   public MutableAccount getSenderAccount(final MessageFrame frame) {
-    return authorizedCodeService.processMutableAccount(
-        this, rootWorldUpdater.getSenderAccount(frame), frame.getSenderAddress());
+    return delegatedCodeService.processMutableAccount(
+        this, rootWorldUpdater.getSenderAccount(frame));
   }
 
   @Override
@@ -112,16 +112,19 @@ public class EVMWorldUpdater implements WorldUpdater {
 
   @Override
   public Optional<WorldUpdater> parentUpdater() {
-    return rootWorldUpdater.parentUpdater();
+    return rootWorldUpdater.parentUpdater().isPresent()
+        ? Optional.of(
+            new EVMWorldUpdater(rootWorldUpdater.parentUpdater().get(), delegatedCodeService))
+        : Optional.empty();
   }
 
   @Override
   public WorldUpdater updater() {
-    return new EVMWorldUpdater(rootWorldUpdater.updater(), authorizedCodeService);
+    return new EVMWorldUpdater(rootWorldUpdater.updater(), delegatedCodeService);
   }
 
   @Override
   public Account get(final Address address) {
-    return authorizedCodeService.processAccount(this, rootWorldUpdater.get(address), address);
+    return delegatedCodeService.processAccount(this, rootWorldUpdater.get(address));
   }
 }

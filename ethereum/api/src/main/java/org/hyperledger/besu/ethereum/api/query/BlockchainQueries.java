@@ -30,7 +30,7 @@ import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockBody;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.LogWithMetadata;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
@@ -46,7 +46,6 @@ import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -60,6 +59,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
@@ -77,20 +77,20 @@ public class BlockchainQueries {
   private final Optional<TransactionLogBloomCacher> transactionLogBloomCacher;
   private final Optional<EthScheduler> ethScheduler;
   private final ApiConfiguration apiConfig;
-  private final MiningParameters miningParameters;
+  private final MiningConfiguration miningConfiguration;
 
   public BlockchainQueries(
       final ProtocolSchedule protocolSchedule,
       final Blockchain blockchain,
       final WorldStateArchive worldStateArchive,
-      final MiningParameters miningParameters) {
+      final MiningConfiguration miningConfiguration) {
     this(
         protocolSchedule,
         blockchain,
         worldStateArchive,
         Optional.empty(),
         Optional.empty(),
-        miningParameters);
+        miningConfiguration);
   }
 
   public BlockchainQueries(
@@ -98,14 +98,14 @@ public class BlockchainQueries {
       final Blockchain blockchain,
       final WorldStateArchive worldStateArchive,
       final EthScheduler scheduler,
-      final MiningParameters miningParameters) {
+      final MiningConfiguration miningConfiguration) {
     this(
         protocolSchedule,
         blockchain,
         worldStateArchive,
         Optional.empty(),
         Optional.ofNullable(scheduler),
-        miningParameters);
+        miningConfiguration);
   }
 
   public BlockchainQueries(
@@ -114,7 +114,7 @@ public class BlockchainQueries {
       final WorldStateArchive worldStateArchive,
       final Optional<Path> cachePath,
       final Optional<EthScheduler> scheduler,
-      final MiningParameters miningParameters) {
+      final MiningConfiguration miningConfiguration) {
     this(
         protocolSchedule,
         blockchain,
@@ -122,7 +122,7 @@ public class BlockchainQueries {
         cachePath,
         scheduler,
         ImmutableApiConfiguration.builder().build(),
-        miningParameters);
+        miningConfiguration);
   }
 
   public BlockchainQueries(
@@ -132,7 +132,7 @@ public class BlockchainQueries {
       final Optional<Path> cachePath,
       final Optional<EthScheduler> scheduler,
       final ApiConfiguration apiConfig,
-      final MiningParameters miningParameters) {
+      final MiningConfiguration miningConfiguration) {
     this.protocolSchedule = protocolSchedule;
     this.blockchain = blockchain;
     this.worldStateArchive = worldStateArchive;
@@ -144,7 +144,7 @@ public class BlockchainQueries {
                 new TransactionLogBloomCacher(blockchain, cachePath.get(), scheduler.get()))
             : Optional.empty();
     this.apiConfig = apiConfig;
-    this.miningParameters = miningParameters;
+    this.miningConfiguration = miningConfiguration;
   }
 
   public Blockchain getBlockchain() {
@@ -976,28 +976,36 @@ public class BlockchainQueries {
   }
 
   public Wei gasPrice() {
-    final long blockHeight = headBlockNumber();
-    final var chainHeadHeader = blockchain.getChainHeadHeader();
+    final Block chainHeadBlock = blockchain.getChainHeadBlock();
+    final var chainHeadHeader = chainHeadBlock.getHeader();
+    final long blockHeight = chainHeadHeader.getNumber();
+
     final var nextBlockProtocolSpec =
         protocolSchedule.getForNextBlockHeader(chainHeadHeader, System.currentTimeMillis());
     final var nextBlockFeeMarket = nextBlockProtocolSpec.getFeeMarket();
+
     final Wei[] gasCollection =
-        LongStream.rangeClosed(
-                Math.max(0, blockHeight - apiConfig.getGasPriceBlocks() + 1), blockHeight)
-            .mapToObj(
-                l ->
-                    blockchain
-                        .getBlockByNumber(l)
-                        .map(Block::getBody)
-                        .map(BlockBody::getTransactions)
-                        .orElseThrow(
-                            () -> new IllegalStateException("Could not retrieve block #" + l)))
+        Stream.concat(
+                LongStream.range(
+                        Math.max(0, blockHeight - apiConfig.getGasPriceBlocks() + 1), blockHeight)
+                    .mapToObj(
+                        l ->
+                            blockchain
+                                .getBlockByNumber(l)
+                                .orElseThrow(
+                                    () ->
+                                        new IllegalStateException(
+                                            "Could not retrieve block #" + l))),
+                Stream.of(chainHeadBlock))
+            .map(Block::getBody)
+            .map(BlockBody::getTransactions)
             .flatMap(Collection::stream)
             .filter(t -> t.getGasPrice().isPresent())
             .map(t -> t.getGasPrice().get())
             .sorted()
             .toArray(Wei[]::new);
-    return (gasCollection == null || gasCollection.length == 0)
+
+    return gasCollection.length == 0
         ? gasPriceLowerBound(chainHeadHeader, nextBlockFeeMarket)
         : UInt256s.max(
             gasPriceLowerBound(chainHeadHeader, nextBlockFeeMarket),
@@ -1026,7 +1034,7 @@ public class BlockchainQueries {
 
   private Wei gasPriceLowerBound(
       final BlockHeader chainHeadHeader, final FeeMarket nextBlockFeeMarket) {
-    final var minGasPrice = miningParameters.getMinTransactionGasPrice();
+    final var minGasPrice = miningConfiguration.getMinTransactionGasPrice();
 
     if (nextBlockFeeMarket.implementsBaseFee()) {
       return UInt256s.max(
@@ -1036,31 +1044,39 @@ public class BlockchainQueries {
     return minGasPrice;
   }
 
-  public Optional<Wei> gasPriorityFee() {
-    final long blockHeight = headBlockNumber();
-    final BigInteger[] gasCollection =
-        LongStream.range(Math.max(0, blockHeight - apiConfig.getGasPriceBlocks()), blockHeight)
-            .mapToObj(
-                l ->
-                    blockchain
-                        .getBlockByNumber(l)
-                        .map(Block::getBody)
-                        .map(BlockBody::getTransactions)
-                        .orElseThrow(
-                            () -> new IllegalStateException("Could not retrieve block #" + l)))
+  public Wei gasPriorityFee() {
+    final Block chainHeadBlock = blockchain.getChainHeadBlock();
+    final long blockHeight = chainHeadBlock.getHeader().getNumber();
+
+    final Wei[] gasCollection =
+        Stream.concat(
+                LongStream.range(
+                        Math.max(0, blockHeight - apiConfig.getGasPriceBlocks() + 1), blockHeight)
+                    .mapToObj(
+                        l ->
+                            blockchain
+                                .getBlockByNumber(l)
+                                .orElseThrow(
+                                    () ->
+                                        new IllegalStateException(
+                                            "Could not retrieve block #" + l))),
+                Stream.of(chainHeadBlock))
+            .map(Block::getBody)
+            .map(BlockBody::getTransactions)
             .flatMap(Collection::stream)
             .filter(t -> t.getMaxPriorityFeePerGas().isPresent())
-            .map(t -> t.getMaxPriorityFeePerGas().get().toBigInteger())
-            .sorted(BigInteger::compareTo)
-            .toArray(BigInteger[]::new);
-    return (gasCollection.length == 0)
-        ? Optional.empty()
-        : Optional.of(
-            Wei.of(
-                gasCollection[
-                    Math.min(
-                        gasCollection.length - 1,
-                        (int) ((gasCollection.length) * apiConfig.getGasPriceFraction()))]));
+            .map(t -> t.getMaxPriorityFeePerGas().get())
+            .sorted()
+            .toArray(Wei[]::new);
+
+    return gasCollection.length == 0
+        ? miningConfiguration.getMinPriorityFeePerGas()
+        : UInt256s.max(
+            miningConfiguration.getMinPriorityFeePerGas(),
+            gasCollection[
+                Math.min(
+                    gasCollection.length - 1,
+                    (int) ((gasCollection.length) * apiConfig.getGasPriceFraction()))]);
   }
 
   /**

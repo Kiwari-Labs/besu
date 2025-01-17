@@ -27,6 +27,7 @@ import org.hyperledger.besu.ethereum.core.BlockHeaderTestFixture;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.eth.manager.EthContext;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManager;
+import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestBuilder;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestUtil;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.manager.RespondingEthPeer;
@@ -43,6 +44,7 @@ import org.hyperledger.besu.ethereum.worldstate.DataStorageConfiguration;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateStorageCoordinator;
 import org.hyperledger.besu.metrics.ObservableMetricsSystem;
+import org.hyperledger.besu.metrics.SyncDurationMetrics;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.plugin.services.storage.rocksdb.RocksDBKeyValueStorageFactory;
 import org.hyperledger.besu.plugin.services.storage.rocksdb.RocksDBMetricsFactory;
@@ -93,12 +95,14 @@ public class WorldStateDownloaderBenchmark {
 
     tempDir = Files.createTempDir().toPath();
     ethProtocolManager =
-        EthProtocolManagerTestUtil.create(
-            new EthScheduler(
-                syncConfig.getDownloaderParallelism(),
-                syncConfig.getTransactionsParallelism(),
-                syncConfig.getComputationParallelism(),
-                metricsSystem));
+        EthProtocolManagerTestBuilder.builder()
+            .setEthScheduler(
+                new EthScheduler(
+                    syncConfig.getDownloaderParallelism(),
+                    syncConfig.getTransactionsParallelism(),
+                    syncConfig.getComputationParallelism(),
+                    metricsSystem))
+            .build();
 
     peer = EthProtocolManagerTestUtil.createPeer(ethProtocolManager, blockHeader.getNumber());
 
@@ -120,7 +124,8 @@ public class WorldStateDownloaderBenchmark {
             syncConfig.getWorldStateMaxRequestsWithoutProgress(),
             syncConfig.getWorldStateMinMillisBeforeStalling(),
             Clock.fixed(Instant.ofEpochSecond(1000), ZoneOffset.UTC),
-            metricsSystem);
+            metricsSystem,
+            SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS);
   }
 
   private Hash createExistingWorldState() {

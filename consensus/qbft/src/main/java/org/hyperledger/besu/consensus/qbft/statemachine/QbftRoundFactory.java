@@ -99,7 +99,8 @@ public class QbftRoundFactory {
    */
   public QbftRound createNewRoundWithState(
       final BlockHeader parentHeader, final RoundState roundState) {
-    final BlockCreator blockCreator = blockCreatorFactory.create(parentHeader, 0);
+    final BlockCreator blockCreator =
+        blockCreatorFactory.create(roundState.getRoundIdentifier().getRoundNumber());
 
     // TODO(tmm): Why is this created everytime?!
     final QbftMessageTransmitter messageTransmitter =
@@ -115,6 +116,7 @@ public class QbftRoundFactory {
         messageFactory,
         messageTransmitter,
         finalState.getRoundTimer(),
-        bftExtraDataCodec);
+        bftExtraDataCodec,
+        parentHeader);
   }
 }

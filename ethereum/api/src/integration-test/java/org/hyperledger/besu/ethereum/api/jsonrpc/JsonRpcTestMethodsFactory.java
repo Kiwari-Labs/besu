@@ -19,8 +19,10 @@ import static org.hyperledger.besu.ethereum.core.InMemoryKeyValueStorageProvider
 import static org.mockito.Mockito.mock;
 
 import org.hyperledger.besu.config.StubGenesisConfigOptions;
+import org.hyperledger.besu.ethereum.ConsensusContext;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.api.ImmutableApiConfiguration;
+import org.hyperledger.besu.ethereum.api.graphql.GraphQLConfiguration;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.filter.FilterManager;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.filter.FilterManagerBuilder;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.JsonRpcMethod;
@@ -32,7 +34,7 @@ import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.ethereum.core.PrivacyParameters;
 import org.hyperledger.besu.ethereum.core.Synchronizer;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
@@ -43,6 +45,7 @@ import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 import org.hyperledger.besu.ethereum.p2p.network.P2PNetwork;
 import org.hyperledger.besu.ethereum.permissioning.AccountLocalConfigPermissioningController;
 import org.hyperledger.besu.ethereum.permissioning.NodeLocalConfigPermissioningController;
+import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.metrics.ObservableMetricsSystem;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
@@ -64,8 +67,9 @@ import io.vertx.core.VertxOptions;
 /** Provides a facade to construct the JSON-RPC component. */
 public class JsonRpcTestMethodsFactory {
 
-  private static final String CLIENT_VERSION = "TestClientVersion/0.1.0";
-  private static final BigInteger NETWORK_ID = BigInteger.valueOf(123);
+  private static final String CLIENT_NODE_NAME = "TestClientVersion/0.1.0";
+  private static final String CLIENT_VERSION = "0.1.0";
+  private static final String CLIENT_COMMIT = "12345678";
 
   private final BlockchainImporter importer;
   private final MutableBlockchain blockchain;
@@ -73,15 +77,19 @@ public class JsonRpcTestMethodsFactory {
   private final ProtocolContext context;
   private final BlockchainQueries blockchainQueries;
   private final Synchronizer synchronizer;
+  private final ProtocolSchedule protocolSchedule;
+  private final TransactionSimulator transactionSimulator;
 
   public JsonRpcTestMethodsFactory(final BlockchainImporter importer) {
     this.importer = importer;
     this.blockchain = createInMemoryBlockchain(importer.getGenesisBlock());
     this.stateArchive = createInMemoryWorldStateArchive();
     this.importer.getGenesisState().writeStateTo(stateArchive.getMutable());
-    this.context = new ProtocolContext(blockchain, stateArchive, null, new BadBlockManager());
+    this.context =
+        new ProtocolContext(
+            blockchain, stateArchive, mock(ConsensusContext.class), new BadBlockManager());
 
-    final ProtocolSchedule protocolSchedule = importer.getProtocolSchedule();
+    this.protocolSchedule = importer.getProtocolSchedule();
     this.synchronizer = mock(Synchronizer.class);
 
     for (final Block block : importer.getBlocks()) {
@@ -89,9 +97,13 @@ public class JsonRpcTestMethodsFactory {
       final BlockImporter blockImporter = protocolSpec.getBlockImporter();
       blockImporter.importBlock(context, block, HeaderValidationMode.FULL);
     }
+    final var miningConfiguration = MiningConfiguration.newDefault();
     this.blockchainQueries =
-        new BlockchainQueries(
-            protocolSchedule, blockchain, stateArchive, MiningParameters.newDefault());
+        new BlockchainQueries(protocolSchedule, blockchain, stateArchive, miningConfiguration);
+
+    this.transactionSimulator =
+        new TransactionSimulator(
+            blockchain, stateArchive, protocolSchedule, miningConfiguration, 0L);
   }
 
   public JsonRpcTestMethodsFactory(
@@ -103,13 +115,15 @@ public class JsonRpcTestMethodsFactory {
     this.blockchain = blockchain;
     this.stateArchive = stateArchive;
     this.context = context;
+    this.protocolSchedule = importer.getProtocolSchedule();
+    final var miningConfiguration = MiningConfiguration.newDefault();
     this.blockchainQueries =
         new BlockchainQueries(
-            importer.getProtocolSchedule(),
-            blockchain,
-            stateArchive,
-            MiningParameters.newDefault());
+            importer.getProtocolSchedule(), blockchain, stateArchive, miningConfiguration);
     this.synchronizer = mock(Synchronizer.class);
+    this.transactionSimulator =
+        new TransactionSimulator(
+            blockchain, stateArchive, protocolSchedule, miningConfiguration, 0L);
   }
 
   public JsonRpcTestMethodsFactory(
@@ -123,12 +137,14 @@ public class JsonRpcTestMethodsFactory {
     this.stateArchive = stateArchive;
     this.context = context;
     this.synchronizer = synchronizer;
+    this.protocolSchedule = importer.getProtocolSchedule();
+    final var miningConfiguration = MiningConfiguration.newDefault();
     this.blockchainQueries =
         new BlockchainQueries(
-            importer.getProtocolSchedule(),
-            blockchain,
-            stateArchive,
-            MiningParameters.newDefault());
+            importer.getProtocolSchedule(), blockchain, stateArchive, miningConfiguration);
+    this.transactionSimulator =
+        new TransactionSimulator(
+            blockchain, stateArchive, protocolSchedule, miningConfiguration, 0L);
   }
 
   public BlockchainQueries getBlockchainQueries() {
@@ -139,11 +155,15 @@ public class JsonRpcTestMethodsFactory {
     return stateArchive;
   }
 
+  public BigInteger getChainId() {
+    return protocolSchedule.getChainId().get();
+  }
+
   public Map<String, JsonRpcMethod> methods() {
     final P2PNetwork peerDiscovery = mock(P2PNetwork.class);
     final EthPeers ethPeers = mock(EthPeers.class);
     final TransactionPool transactionPool = mock(TransactionPool.class);
-    final MiningParameters miningParameters = mock(MiningParameters.class);
+    final MiningConfiguration miningConfiguration = mock(MiningConfiguration.class);
     final PoWMiningCoordinator miningCoordinator = mock(PoWMiningCoordinator.class);
     final ObservableMetricsSystem metricsSystem = new NoOpMetricsSystem();
     final Optional<AccountLocalConfigPermissioningController> accountWhitelistController =
@@ -162,6 +182,8 @@ public class JsonRpcTestMethodsFactory {
     final JsonRpcConfiguration jsonRpcConfiguration = mock(JsonRpcConfiguration.class);
     final WebSocketConfiguration webSocketConfiguration = mock(WebSocketConfiguration.class);
     final MetricsConfiguration metricsConfiguration = mock(MetricsConfiguration.class);
+    final GraphQLConfiguration graphQLConfiguration = mock(GraphQLConfiguration.class);
+
     final NatService natService = new NatService(Optional.empty());
 
     final List<String> apis = new ArrayList<>();
@@ -175,8 +197,10 @@ public class JsonRpcTestMethodsFactory {
 
     return new JsonRpcMethodsFactory()
         .methods(
+            CLIENT_NODE_NAME,
             CLIENT_VERSION,
-            NETWORK_ID,
+            CLIENT_COMMIT,
+            getChainId(),
             new StubGenesisConfigOptions(),
             peerDiscovery,
             blockchainQueries,
@@ -185,7 +209,7 @@ public class JsonRpcTestMethodsFactory {
             context,
             filterManager,
             transactionPool,
-            miningParameters,
+            miningConfiguration,
             miningCoordinator,
             metricsSystem,
             new HashSet<>(),
@@ -196,12 +220,14 @@ public class JsonRpcTestMethodsFactory {
             jsonRpcConfiguration,
             webSocketConfiguration,
             metricsConfiguration,
+            graphQLConfiguration,
             natService,
             new HashMap<>(),
             dataDir,
             ethPeers,
             Vertx.vertx(new VertxOptions().setWorkerPoolSize(1)),
             ImmutableApiConfiguration.builder().build(),
-            Optional.empty());
+            Optional.empty(),
+            transactionSimulator);
   }
 }

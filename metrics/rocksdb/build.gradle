@@ -22,7 +22,8 @@ jar {
       'Specification-Title': archiveBaseName,
       'Specification-Version': project.version,
       'Implementation-Title': archiveBaseName,
-      'Implementation-Version': calculateVersion()
+      'Implementation-Version': calculateVersion(),
+      'Commit-Hash': getGitCommitDetails(40).hash
       )
   }
 }
@@ -39,7 +40,5 @@ dependencies {
   implementation project(':metrics:core')
   implementation project(':plugin-api')
 
-  implementation 'com.google.guava:guava'
-  implementation 'io.prometheus:simpleclient'
   implementation 'org.rocksdb:rocksdbjni'
 }

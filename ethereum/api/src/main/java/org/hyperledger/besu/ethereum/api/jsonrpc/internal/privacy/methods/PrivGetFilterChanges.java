@@ -16,8 +16,10 @@ package org.hyperledger.besu.ethereum.api.jsonrpc.internal.privacy.methods;
 
 import org.hyperledger.besu.ethereum.api.jsonrpc.RpcMethod;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.filter.FilterManager;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.JsonRpcMethod;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcSuccessResponse;
@@ -29,6 +31,7 @@ import org.hyperledger.besu.ethereum.privacy.PrivacyController;
 
 import java.util.List;
 
+@Deprecated(since = "24.12.0")
 public class PrivGetFilterChanges implements JsonRpcMethod {
 
   private final PrivacyController privacyController;
@@ -51,8 +54,22 @@ public class PrivGetFilterChanges implements JsonRpcMethod {
 
   @Override
   public JsonRpcResponse response(final JsonRpcRequestContext requestContext) {
-    final String privacyGroupId = requestContext.getRequiredParameter(0, String.class);
-    final String filterId = requestContext.getRequiredParameter(1, String.class);
+    final String privacyGroupId;
+    try {
+      privacyGroupId = requestContext.getRequiredParameter(0, String.class);
+    } catch (JsonRpcParameterException e) {
+      throw new InvalidJsonRpcParameters(
+          "Invalid privacy group ID parameter (index 0)",
+          RpcErrorType.INVALID_PRIVACY_GROUP_PARAMS,
+          e);
+    }
+    final String filterId;
+    try {
+      filterId = requestContext.getRequiredParameter(1, String.class);
+    } catch (JsonRpcParameterException e) {
+      throw new InvalidJsonRpcParameters(
+          "Invalid filter ID parameter (index 1)", RpcErrorType.INVALID_FILTER_PARAMS, e);
+    }
 
     if (privacyController instanceof MultiTenancyPrivacyController) {
       checkIfPrivacyGroupMatchesAuthenticatedPrivacyUserId(requestContext, privacyGroupId);

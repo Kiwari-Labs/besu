@@ -17,7 +17,7 @@ package org.hyperledger.besu.ethereum.blockcreation.txselection.selectors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -61,7 +61,7 @@ class BlobSizeTransactionSelectorTest {
       Suppliers.memoize(SignatureAlgorithmFactory::getInstance);
   private static final KeyPair KEYS = SIGNATURE_ALGORITHM.get().generateKeyPair();
 
-  private static final long BLOB_GAS_PER_BLOB = CancunGasCalculator.BLOB_GAS_PER_BLOB;
+  private static final long BLOB_GAS_PER_BLOB = new CancunGasCalculator().getBlobGasPerBlob();
   private static final int MAX_BLOBS = 6;
   private static final long MAX_BLOB_GAS = BLOB_GAS_PER_BLOB * MAX_BLOBS;
 
@@ -76,7 +76,9 @@ class BlobSizeTransactionSelectorTest {
 
     final var nonBlobTx = createEIP1559PendingTransaction();
 
-    final var txEvaluationContext = new TransactionEvaluationContext(nonBlobTx, null, null, null);
+    final var txEvaluationContext =
+        new TransactionEvaluationContext(
+            blockSelectionContext.pendingBlockHeader(), nonBlobTx, null, null, null);
 
     final var result =
         selector.evaluateTransactionPreProcessing(txEvaluationContext, selectionResults);
@@ -87,14 +89,16 @@ class BlobSizeTransactionSelectorTest {
   @Test
   void firstBlobTransactionIsSelected() {
     when(blockSelectionContext.gasLimitCalculator().currentBlobGasLimit()).thenReturn(MAX_BLOB_GAS);
-    when(blockSelectionContext.gasCalculator().blobGasCost(anyInt()))
-        .thenAnswer(iom -> BLOB_GAS_PER_BLOB * iom.getArgument(0, Integer.class));
+    when(blockSelectionContext.gasCalculator().blobGasCost(anyLong()))
+        .thenAnswer(iom -> BLOB_GAS_PER_BLOB * iom.getArgument(0, Long.class));
 
     final var selector = new BlobSizeTransactionSelector(blockSelectionContext);
 
     final var firstBlobTx = createBlobPendingTransaction(MAX_BLOBS);
 
-    final var txEvaluationContext = new TransactionEvaluationContext(firstBlobTx, null, null, null);
+    final var txEvaluationContext =
+        new TransactionEvaluationContext(
+            blockSelectionContext.pendingBlockHeader(), firstBlobTx, null, null, null);
 
     when(selectionResults.getCumulativeBlobGasUsed()).thenReturn(0L);
 
@@ -112,7 +116,9 @@ class BlobSizeTransactionSelectorTest {
 
     final var firstBlobTx = createBlobPendingTransaction(1);
 
-    final var txEvaluationContext = new TransactionEvaluationContext(firstBlobTx, null, null, null);
+    final var txEvaluationContext =
+        new TransactionEvaluationContext(
+            blockSelectionContext.pendingBlockHeader(), firstBlobTx, null, null, null);
 
     when(selectionResults.getCumulativeBlobGasUsed()).thenReturn(MAX_BLOB_GAS);
 
@@ -125,14 +131,16 @@ class BlobSizeTransactionSelectorTest {
   @Test
   void returnsTooLargeForRemainingBlobGas() {
     when(blockSelectionContext.gasLimitCalculator().currentBlobGasLimit()).thenReturn(MAX_BLOB_GAS);
-    when(blockSelectionContext.gasCalculator().blobGasCost(anyInt()))
-        .thenAnswer(iom -> BLOB_GAS_PER_BLOB * iom.getArgument(0, Integer.class));
+    when(blockSelectionContext.gasCalculator().blobGasCost(anyLong()))
+        .thenAnswer(iom -> BLOB_GAS_PER_BLOB * iom.getArgument(0, Long.class));
 
     final var selector = new BlobSizeTransactionSelector(blockSelectionContext);
 
     final var firstBlobTx = createBlobPendingTransaction(MAX_BLOBS);
 
-    final var txEvaluationContext = new TransactionEvaluationContext(firstBlobTx, null, null, null);
+    final var txEvaluationContext =
+        new TransactionEvaluationContext(
+            blockSelectionContext.pendingBlockHeader(), firstBlobTx, null, null, null);
 
     when(selectionResults.getCumulativeBlobGasUsed()).thenReturn(MAX_BLOB_GAS - 1);
 

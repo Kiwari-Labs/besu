@@ -17,12 +17,13 @@ package org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.miner;
 import org.hyperledger.besu.ethereum.api.jsonrpc.RpcMethod;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.JsonRpcMethod;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcError;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcSuccessResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 
 import java.nio.charset.StandardCharsets;
 
@@ -34,10 +35,10 @@ import org.slf4j.LoggerFactory;
 public class MinerSetExtraData implements JsonRpcMethod {
   private static final Logger LOG = LoggerFactory.getLogger(MinerSetExtraData.class);
 
-  private final MiningParameters miningParameters;
+  private final MiningConfiguration miningConfiguration;
 
-  public MinerSetExtraData(final MiningParameters miningParameters) {
-    this.miningParameters = miningParameters;
+  public MinerSetExtraData(final MiningConfiguration miningConfiguration) {
+    this.miningConfiguration = miningConfiguration;
   }
 
   @Override
@@ -52,7 +53,7 @@ public class MinerSetExtraData implements JsonRpcMethod {
       Bytes32.fromHexStringLenient(
           rawParam); // done for validation, we want a hex string and max 32 bytes
       final var extraData = Bytes.fromHexStringLenient(rawParam);
-      miningParameters.setExtraData(extraData);
+      miningConfiguration.setExtraData(extraData);
       LOG.atDebug()
           .setMessage("set extra data, raw=[{}] parsed=[{}], UTF-8=[{}]")
           .addArgument(rawParam)
@@ -60,10 +61,10 @@ public class MinerSetExtraData implements JsonRpcMethod {
           .addArgument(() -> new String(extraData.toArray(), StandardCharsets.UTF_8))
           .log();
       return new JsonRpcSuccessResponse(requestContext.getRequest().getId(), true);
-    } catch (final IllegalArgumentException invalidJsonRpcParameters) {
+    } catch (IllegalArgumentException | JsonRpcParameterException e) {
       return new JsonRpcErrorResponse(
           requestContext.getRequest().getId(),
-          new JsonRpcError(RpcErrorType.INVALID_PARAMS, invalidJsonRpcParameters.getMessage()));
+          new JsonRpcError(RpcErrorType.INVALID_EXTRA_DATA_PARAMS, e.getMessage()));
     }
   }
 }

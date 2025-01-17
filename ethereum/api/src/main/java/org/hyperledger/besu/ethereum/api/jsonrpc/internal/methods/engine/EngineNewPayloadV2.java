@@ -14,7 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.engine;
 
-import static org.hyperledger.besu.ethereum.mainnet.HardforkId.MainnetHardforkId.CANCUN;
+import static org.hyperledger.besu.datatypes.HardforkId.MainnetHardforkId.CANCUN;
 
 import org.hyperledger.besu.consensus.merge.blockcreation.MergeMiningCoordinator;
 import org.hyperledger.besu.datatypes.VersionedHash;
@@ -57,14 +57,15 @@ public class EngineNewPayloadV2 extends AbstractEngineNewPayload {
   protected ValidationResult<RpcErrorType> validateParameters(
       final EnginePayloadParameter payloadParameter,
       final Optional<List<String>> maybeVersionedHashParam,
-      final Optional<String> maybeBeaconBlockRootParam) {
+      final Optional<String> maybeBeaconBlockRootParam,
+      final Optional<List<String>> maybeRequestsParam) {
     if (payloadParameter.getBlobGasUsed() != null) {
       return ValidationResult.invalid(
-          RpcErrorType.INVALID_BLOB_GAS_USED_PARAMS, "Missing blob gas used field");
+          RpcErrorType.INVALID_BLOB_GAS_USED_PARAMS, "Unexpected blob gas used field present");
     }
     if (payloadParameter.getExcessBlobGas() != null) {
       return ValidationResult.invalid(
-          RpcErrorType.INVALID_PARAMS, "non-null ExcessBlobGas pre-cancun");
+          RpcErrorType.INVALID_EXCESS_BLOB_GAS_PARAMS, "Unexpected excess blob gas field present");
     }
     return ValidationResult.valid();
   }

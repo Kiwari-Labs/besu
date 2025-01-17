@@ -17,14 +17,17 @@ package org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType.BLOCK_NOT_FOUND;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType.INTERNAL_ERROR;
 
+import org.hyperledger.besu.datatypes.AccountOverrideMap;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.api.jsonrpc.JsonRpcErrorConverter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.RpcMethod;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcRequestException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.BlockParameterOrBlockHash;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonCallParameter;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcError;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
@@ -32,7 +35,6 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcSucces
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.mainnet.ImmutableTransactionValidationParams;
 import org.hyperledger.besu.ethereum.mainnet.TransactionValidationParams;
 import org.hyperledger.besu.ethereum.mainnet.ValidationResult;
 import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
@@ -40,6 +42,10 @@ import org.hyperledger.besu.ethereum.transaction.TransactionInvalidReason;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulatorResult;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+
+import java.util.Optional;
+
+import com.google.common.annotations.VisibleForTesting;
 
 public class EthCall extends AbstractBlockParameterOrBlockHashMethod {
   private final TransactionSimulator transactionSimulator;
@@ -60,7 +66,7 @@ public class EthCall extends AbstractBlockParameterOrBlockHashMethod {
       final JsonRpcRequestContext request) {
     try {
       return request.getRequiredParameter(1, BlockParameterOrBlockHash.class);
-    } catch (Exception e) { // TODO:replace with JsonRpcParameter.JsonRpcParameterException
+    } catch (JsonRpcParameterException e) {
       throw new InvalidJsonRpcParameters(
           "Invalid block or block hash parameters (index 1)", RpcErrorType.INVALID_BLOCK_PARAMS, e);
     }
@@ -80,10 +86,13 @@ public class EthCall extends AbstractBlockParameterOrBlockHashMethod {
   protected Object resultByBlockHeader(
       final JsonRpcRequestContext request, final BlockHeader header) {
     JsonCallParameter callParams = JsonCallParameterUtil.validateAndGetCallParams(request);
+    Optional<AccountOverrideMap> maybeStateOverrides = getAddressAccountOverrideMap(request);
+    // TODO implement for block overrides
 
     return transactionSimulator
         .process(
             callParams,
+            maybeStateOverrides,
             buildTransactionValidationParams(header, callParams),
             OperationTracer.NO_TRACING,
             (mutableWorldState, transactionSimulatorResult) ->
@@ -105,6 +114,17 @@ public class EthCall extends AbstractBlockParameterOrBlockHashMethod {
                                             reason)))),
             header)
         .orElse(errorResponse(request, INTERNAL_ERROR));
+  }
+
+  @VisibleForTesting
+  protected Optional<AccountOverrideMap> getAddressAccountOverrideMap(
+      final JsonRpcRequestContext request) {
+    try {
+      return request.getOptionalParameter(2, AccountOverrideMap.class);
+    } catch (JsonRpcParameterException e) {
+      throw new InvalidJsonRpcRequestException(
+          "Invalid account overrides parameter (index 2)", RpcErrorType.INVALID_CALL_PARAMS, e);
+    }
   }
 
   @Override
@@ -148,20 +168,18 @@ public class EthCall extends AbstractBlockParameterOrBlockHashMethod {
   private TransactionValidationParams buildTransactionValidationParams(
       final BlockHeader header, final JsonCallParameter callParams) {
 
-    ImmutableTransactionValidationParams.Builder transactionValidationParams =
-        ImmutableTransactionValidationParams.builder()
-            .from(TransactionValidationParams.transactionSimulator());
-
+    final boolean isAllowExceedingBalance;
     // if it is not set explicitly whether we want a strict check of the balance or not. this will
     // be decided according to the provided parameters
     if (callParams.isMaybeStrict().isEmpty()) {
-      transactionValidationParams.isAllowExceedingBalance(
-          isAllowExceedingBalanceAutoSelection(header, callParams));
+      isAllowExceedingBalance = isAllowExceedingBalanceAutoSelection(header, callParams);
+
     } else {
-      transactionValidationParams.isAllowExceedingBalance(
-          !callParams.isMaybeStrict().orElse(Boolean.FALSE));
+      isAllowExceedingBalance = !callParams.isMaybeStrict().orElse(Boolean.FALSE);
     }
-    return transactionValidationParams.build();
+    return isAllowExceedingBalance
+        ? TransactionValidationParams.transactionSimulatorAllowExceedingBalance()
+        : TransactionValidationParams.transactionSimulator();
   }
 
   private boolean isAllowExceedingBalanceAutoSelection(

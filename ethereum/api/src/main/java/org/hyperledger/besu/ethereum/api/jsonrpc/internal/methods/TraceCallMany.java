@@ -22,6 +22,7 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.BlockParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonCallParameter;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.TraceCallManyParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.TraceTypeParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.processor.TransactionTrace;
@@ -67,7 +68,7 @@ public class TraceCallMany extends TraceCall implements JsonRpcMethod {
     final Optional<BlockParameter> maybeBlockParameter;
     try {
       maybeBlockParameter = request.getOptionalParameter(1, BlockParameter.class);
-    } catch (Exception e) { // TODO:replace with JsonRpcParameter.JsonRpcParameterException
+    } catch (JsonRpcParameterException e) {
       throw new InvalidJsonRpcParameters(
           "Invalid block parameter (index 1)", RpcErrorType.INVALID_BLOCK_PARAMS, e);
     }
@@ -81,7 +82,7 @@ public class TraceCallMany extends TraceCall implements JsonRpcMethod {
 
     if (requestContext.getRequest().getParamLength() != 2) {
       return new JsonRpcErrorResponse(
-          requestContext.getRequest().getId(), RpcErrorType.INVALID_PARAMS);
+          requestContext.getRequest().getId(), RpcErrorType.INVALID_PARAM_COUNT);
     }
 
     final TraceCallManyParameter[] transactionsAndTraceTypeParameters;
@@ -98,7 +99,7 @@ public class TraceCallMany extends TraceCall implements JsonRpcMethod {
     } catch (final Exception e) {
       LOG.error("Error parsing trace_callMany parameters: {}", e.getLocalizedMessage());
       return new JsonRpcErrorResponse(
-          requestContext.getRequest().getId(), RpcErrorType.INVALID_PARAMS);
+          requestContext.getRequest().getId(), RpcErrorType.INVALID_TRACE_CALL_MANY_PARAMS);
     }
 
     final Optional<BlockHeader> maybeBlockHeader =
@@ -115,8 +116,7 @@ public class TraceCallMany extends TraceCall implements JsonRpcMethod {
         .getAndMapWorldState(
             blockHeader.getBlockHash(),
             ws -> {
-              final WorldUpdater updater =
-                  transactionSimulator.getEffectiveWorldStateUpdater(blockHeader, ws);
+              final WorldUpdater updater = transactionSimulator.getEffectiveWorldStateUpdater(ws);
               try {
                 Arrays.stream(transactionsAndTraceTypeParameters)
                     .forEachOrdered(
@@ -157,9 +157,20 @@ public class TraceCallMany extends TraceCall implements JsonRpcMethod {
     final Set<TraceTypeParameter.TraceType> traceTypes = traceTypeParameter.getTraceTypes();
     final DebugOperationTracer tracer =
         new DebugOperationTracer(buildTraceOptions(traceTypes), false);
+    final var miningBeneficiary =
+        protocolSchedule
+            .getByBlockHeader(header)
+            .getMiningBeneficiaryCalculator()
+            .calculateBeneficiary(header);
     final Optional<TransactionSimulatorResult> maybeSimulatorResult =
         transactionSimulator.processWithWorldUpdater(
-            callParameter, buildTransactionValidationParams(), tracer, header, worldUpdater);
+            callParameter,
+            Optional.empty(),
+            buildTransactionValidationParams(),
+            tracer,
+            header,
+            worldUpdater,
+            miningBeneficiary);
 
     LOG.trace("Executing {} call for transaction {}", traceTypeParameter, callParameter);
     if (maybeSimulatorResult.isEmpty()) {

@@ -15,7 +15,6 @@
 package org.hyperledger.besu.evm.operation;
 
 import static org.hyperledger.besu.evm.internal.Words.clampedToLong;
-import static org.hyperledger.besu.evm.operation.AbstractCallOperation.LEGACY_FAILURE_STACK_ITEM;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
@@ -45,9 +44,6 @@ public abstract class AbstractCreateOperation extends AbstractOperation {
   protected static final OperationResult INVALID_OPERATION =
       new OperationResult(0L, ExceptionalHaltReason.INVALID_OPERATION);
 
-  /** The maximum init code size */
-  protected final int maxInitcodeSize;
-
   /** The EOF Version this create operation requires initcode to be in */
   protected final int eofVersion;
 
@@ -59,7 +55,6 @@ public abstract class AbstractCreateOperation extends AbstractOperation {
    * @param stackItemsConsumed the stack items consumed
    * @param stackItemsProduced the stack items produced
    * @param gasCalculator the gas calculator
-   * @param maxInitcodeSize Maximum init code size
    * @param eofVersion the EOF version this create operation is valid in
    */
   protected AbstractCreateOperation(
@@ -68,10 +63,8 @@ public abstract class AbstractCreateOperation extends AbstractOperation {
       final int stackItemsConsumed,
       final int stackItemsProduced,
       final GasCalculator gasCalculator,
-      final int maxInitcodeSize,
       final int eofVersion) {
     super(opcode, name, stackItemsConsumed, stackItemsProduced, gasCalculator);
-    this.maxInitcodeSize = maxInitcodeSize;
     this.eofVersion = eofVersion;
   }
 
@@ -103,7 +96,7 @@ public abstract class AbstractCreateOperation extends AbstractOperation {
 
     Code code = codeSupplier.get();
 
-    if (code != null && code.getSize() > maxInitcodeSize) {
+    if (code != null && code.getSize() > evm.getMaxInitcodeSize()) {
       frame.popStackItems(getStackItemsConsumed());
       return new OperationResult(cost, ExceptionalHaltReason.CODE_TOO_LARGE);
     }
@@ -164,12 +157,18 @@ public abstract class AbstractCreateOperation extends AbstractOperation {
    */
   protected abstract Code getInitCode(MessageFrame frame, EVM evm);
 
-  private void fail(final MessageFrame frame) {
+  /**
+   * Handles stack items when operation fails for validation reasons (noe enough ether, bad eof
+   * code)
+   *
+   * @param frame the current execution frame
+   */
+  protected void fail(final MessageFrame frame) {
     final long inputOffset = clampedToLong(frame.getStackItem(1));
     final long inputSize = clampedToLong(frame.getStackItem(2));
     frame.readMutableMemory(inputOffset, inputSize);
     frame.popStackItems(getStackItemsConsumed());
-    frame.pushStackItem(LEGACY_FAILURE_STACK_ITEM);
+    frame.pushStackItem(Bytes.EMPTY);
   }
 
   private void spawnChildMessage(final MessageFrame parent, final Code code, final EVM evm) {
@@ -233,12 +232,12 @@ public abstract class AbstractCreateOperation extends AbstractOperation {
       } else {
         frame.getWorldUpdater().deleteAccount(childFrame.getRecipientAddress());
         frame.setReturnData(childFrame.getOutputData());
-        frame.pushStackItem(LEGACY_FAILURE_STACK_ITEM);
+        frame.pushStackItem(Bytes.EMPTY);
         onInvalid(frame, (CodeInvalid) outputCode);
       }
     } else {
       frame.setReturnData(childFrame.getOutputData());
-      frame.pushStackItem(LEGACY_FAILURE_STACK_ITEM);
+      frame.pushStackItem(Bytes.EMPTY);
       onFailure(frame, childFrame.getExceptionalHaltReason());
     }
 

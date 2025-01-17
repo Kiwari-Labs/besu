@@ -16,6 +16,7 @@ package org.hyperledger.besu.ethereum.eth.sync.checkpointsync;
 
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.eth.manager.EthContext;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutor;
 import org.hyperledger.besu.ethereum.eth.sync.ChainDownloader;
 import org.hyperledger.besu.ethereum.eth.sync.PivotBlockSelector;
 import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
@@ -24,6 +25,7 @@ import org.hyperledger.besu.ethereum.eth.sync.fastsync.FastSyncState;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateStorageCoordinator;
+import org.hyperledger.besu.metrics.SyncDurationMetrics;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 
 public class CheckpointSyncActions extends FastSyncActions {
@@ -33,6 +35,7 @@ public class CheckpointSyncActions extends FastSyncActions {
       final ProtocolSchedule protocolSchedule,
       final ProtocolContext protocolContext,
       final EthContext ethContext,
+      final PeerTaskExecutor peerTaskExecutor,
       final SyncState syncState,
       final PivotBlockSelector pivotBlockSelector,
       final MetricsSystem metricsSystem) {
@@ -42,21 +45,25 @@ public class CheckpointSyncActions extends FastSyncActions {
         protocolSchedule,
         protocolContext,
         ethContext,
+        peerTaskExecutor,
         syncState,
         pivotBlockSelector,
         metricsSystem);
   }
 
   @Override
-  public ChainDownloader createChainDownloader(final FastSyncState currentState) {
+  public ChainDownloader createChainDownloader(
+      final FastSyncState currentState, final SyncDurationMetrics syncDurationMetrics) {
     return CheckpointSyncChainDownloader.create(
         syncConfig,
         worldStateStorageCoordinator,
         protocolSchedule,
         protocolContext,
         ethContext,
+        peerTaskExecutor,
         syncState,
         metricsSystem,
-        currentState);
+        currentState,
+        syncDurationMetrics);
   }
 }

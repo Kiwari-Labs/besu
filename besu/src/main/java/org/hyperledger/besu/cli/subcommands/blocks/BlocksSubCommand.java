@@ -31,9 +31,9 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.IncrementingNonceGenerator;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
-import org.hyperledger.besu.ethereum.core.ImmutableMiningParameters;
-import org.hyperledger.besu.ethereum.core.ImmutableMiningParameters.MutableInitValues;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.ImmutableMiningConfiguration;
+import org.hyperledger.besu.ethereum.core.ImmutableMiningConfiguration.MutableInitValues;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.metrics.MetricsService;
 import org.hyperledger.besu.metrics.prometheus.MetricsConfiguration;
 
@@ -53,7 +53,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import io.vertx.core.Vertx;
+import jakarta.validation.constraints.NotBlank;
 import org.apache.tuweni.bytes.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -254,7 +254,7 @@ public class BlocksSubCommand implements Runnable {
         // Set some defaults
         return parentCommand
             .parentCommand
-            .getControllerBuilder()
+            .setupControllerBuilder()
             // set to mainnet genesis block so validation rules won't reject it.
             .clock(Clock.fixed(Instant.ofEpochSecond(startTime), ZoneOffset.UTC))
             .miningParameters(getMiningParameters())
@@ -264,12 +264,12 @@ public class BlocksSubCommand implements Runnable {
       }
     }
 
-    private MiningParameters getMiningParameters() {
+    private MiningConfiguration getMiningParameters() {
       final Wei minTransactionGasPrice = Wei.ZERO;
       // Extradata and coinbase can be configured on a per-block level via the json file
       final Address coinbase = Address.ZERO;
       final Bytes extraData = Bytes.EMPTY;
-      return ImmutableMiningParameters.builder()
+      return ImmutableMiningConfiguration.builder()
           .mutableInitValues(
               MutableInitValues.builder()
                   .nonceGenerator(new IncrementingNonceGenerator(0))
@@ -335,6 +335,7 @@ public class BlocksSubCommand implements Runnable {
         arity = "1..1")
     private final BlockExportFormat format = BlockExportFormat.RLP;
 
+    @NotBlank
     @Option(
         names = "--to",
         required = true,
@@ -374,8 +375,8 @@ public class BlocksSubCommand implements Runnable {
     private BesuController createBesuController() {
       return parentCommand
           .parentCommand
-          .getControllerBuilder()
-          .miningParameters(MiningParameters.newDefault())
+          .setupControllerBuilder()
+          .miningParameters(MiningConfiguration.newDefault())
           .build();
     }
 
@@ -456,8 +457,7 @@ public class BlocksSubCommand implements Runnable {
         parentCommand.parentCommand.metricsConfiguration();
 
     Optional<MetricsService> metricsService =
-        MetricsService.create(
-            Vertx.vertx(), metricsConfiguration, parentCommand.parentCommand.getMetricsSystem());
+        MetricsService.create(metricsConfiguration, parentCommand.parentCommand.getMetricsSystem());
     metricsService.ifPresent(MetricsService::start);
     return metricsService;
   }

@@ -19,6 +19,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.eth.manager.EthContext;
+import org.hyperledger.besu.ethereum.eth.manager.peertask.PeerTaskExecutor;
 import org.hyperledger.besu.ethereum.eth.manager.task.WaitForPeersTask;
 import org.hyperledger.besu.ethereum.eth.sync.ChainDownloader;
 import org.hyperledger.besu.ethereum.eth.sync.PivotBlockSelector;
@@ -28,6 +29,7 @@ import org.hyperledger.besu.ethereum.eth.sync.tasks.RetryingGetHeaderFromPeerByH
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateStorageCoordinator;
 import org.hyperledger.besu.metrics.BesuMetricCategory;
+import org.hyperledger.besu.metrics.SyncDurationMetrics;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.metrics.Counter;
 
@@ -47,6 +49,7 @@ public class FastSyncActions {
   protected final ProtocolSchedule protocolSchedule;
   protected final ProtocolContext protocolContext;
   protected final EthContext ethContext;
+  protected final PeerTaskExecutor peerTaskExecutor;
   protected final SyncState syncState;
   protected final PivotBlockSelector pivotBlockSelector;
   protected final MetricsSystem metricsSystem;
@@ -59,6 +62,7 @@ public class FastSyncActions {
       final ProtocolSchedule protocolSchedule,
       final ProtocolContext protocolContext,
       final EthContext ethContext,
+      final PeerTaskExecutor peerTaskExecutor,
       final SyncState syncState,
       final PivotBlockSelector pivotBlockSelector,
       final MetricsSystem metricsSystem) {
@@ -67,6 +71,7 @@ public class FastSyncActions {
     this.protocolSchedule = protocolSchedule;
     this.protocolContext = protocolContext;
     this.ethContext = ethContext;
+    this.peerTaskExecutor = peerTaskExecutor;
     this.syncState = syncState;
     this.pivotBlockSelector = pivotBlockSelector;
     this.metricsSystem = metricsSystem;
@@ -155,16 +160,19 @@ public class FastSyncActions {
     return fastSyncState;
   }
 
-  public ChainDownloader createChainDownloader(final FastSyncState currentState) {
+  public ChainDownloader createChainDownloader(
+      final FastSyncState currentState, final SyncDurationMetrics syncDurationMetrics) {
     return FastSyncChainDownloader.create(
         syncConfig,
         worldStateStorageCoordinator,
         protocolSchedule,
         protocolContext,
         ethContext,
+        peerTaskExecutor,
         syncState,
         metricsSystem,
-        currentState);
+        currentState,
+        syncDurationMetrics);
   }
 
   private CompletableFuture<FastSyncState> downloadPivotBlockHeader(final Hash hash) {

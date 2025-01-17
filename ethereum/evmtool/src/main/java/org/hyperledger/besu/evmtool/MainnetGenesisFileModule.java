@@ -20,14 +20,13 @@ import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.crypto.SignatureAlgorithmType;
 import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.core.BlockHeaderFunctions;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.ethereum.core.PrivacyParameters;
 import org.hyperledger.besu.ethereum.mainnet.MainnetBlockHeaderFunctions;
 import org.hyperledger.besu.ethereum.mainnet.MainnetProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolScheduleBuilder;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpecAdapters;
-import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 
@@ -71,19 +70,18 @@ class MainnetGenesisFileModule extends GenesisFileModule {
       }
     }
 
-    var schedules = createSchedules(configOptions.getChainId().orElse(BigInteger.valueOf(1337)));
-    var schedule =
-        schedules.get(
-            fork.orElse(EvmSpecVersion.defaultVersion().getName())
-                .toLowerCase(Locale.getDefault()));
-    if (schedule != null) {
-      return schedule.get();
+    if (fork.isPresent()) {
+      var schedules = createSchedules(configOptions.getChainId().orElse(BigInteger.valueOf(1337)));
+      var schedule = schedules.get(fork.get().toLowerCase(Locale.getDefault()));
+      if (schedule != null) {
+        return schedule.get();
+      }
     }
 
     return MainnetProtocolSchedule.fromConfig(
         configOptions,
         evmConfiguration,
-        MiningParameters.newDefault(),
+        MiningConfiguration.newDefault(),
         new BadBlockManager(),
         false,
         new NoOpMetricsSystem());
@@ -160,14 +158,15 @@ class MainnetGenesisFileModule extends GenesisFileModule {
         Map.entry(
             "prague",
             createSchedule(
-                new StubGenesisConfigOptions().pragueTime(0).baseFeePerGas(0x0a).chainId(chainId))),
-        Map.entry(
-            "pragueeof",
-            createSchedule(
                 new StubGenesisConfigOptions()
-                    .pragueEOFTime(0)
+                    .pragueTime(0)
+                    .osakaTime(0) // TODO remove this once osaka_devnet_0 launches
                     .baseFeePerGas(0x0a)
                     .chainId(chainId))),
+        Map.entry(
+            "osaka",
+            createSchedule(
+                new StubGenesisConfigOptions().osakaTime(0).baseFeePerGas(0x0a).chainId(chainId))),
         Map.entry(
             "futureeips",
             createSchedule(
@@ -188,12 +187,12 @@ class MainnetGenesisFileModule extends GenesisFileModule {
     return () ->
         new ProtocolScheduleBuilder(
                 options,
-                options.getChainId().orElse(BigInteger.ONE),
+                options.getChainId(),
                 ProtocolSpecAdapters.create(0, Function.identity()),
                 PrivacyParameters.DEFAULT,
                 false,
                 EvmConfiguration.DEFAULT,
-                MiningParameters.MINING_DISABLED,
+                MiningConfiguration.MINING_DISABLED,
                 new BadBlockManager(),
                 false,
                 new NoOpMetricsSystem())

@@ -24,6 +24,7 @@ import org.hyperledger.besu.ethereum.core.Difficulty;
 import org.hyperledger.besu.ethereum.eth.EthProtocolConfiguration;
 import org.hyperledger.besu.ethereum.eth.manager.EthContext;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManager;
+import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestBuilder;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManagerTestUtil;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.manager.RespondingEthPeer;
@@ -31,6 +32,7 @@ import org.hyperledger.besu.ethereum.eth.sync.ChainDownloader;
 import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
+import org.hyperledger.besu.metrics.SyncDurationMetrics;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
@@ -79,13 +81,14 @@ public class FullSyncChainDownloaderTotalTerminalDifficultyTest {
     protocolSchedule = localBlockchainSetup.getProtocolSchedule();
     protocolContext = localBlockchainSetup.getProtocolContext();
     ethProtocolManager =
-        EthProtocolManagerTestUtil.create(
-            protocolSchedule,
-            localBlockchain,
-            new EthScheduler(1, 1, 1, 1, new NoOpMetricsSystem()),
-            localBlockchainSetup.getWorldArchive(),
-            localBlockchainSetup.getTransactionPool(),
-            EthProtocolConfiguration.defaultConfig());
+        EthProtocolManagerTestBuilder.builder()
+            .setProtocolSchedule(protocolSchedule)
+            .setBlockchain(localBlockchain)
+            .setEthScheduler(new EthScheduler(1, 1, 1, 1, new NoOpMetricsSystem()))
+            .setWorldStateArchive(localBlockchainSetup.getWorldArchive())
+            .setTransactionPool(localBlockchainSetup.getTransactionPool())
+            .setEthereumWireProtocolConfiguration(EthProtocolConfiguration.defaultConfig())
+            .build();
     ethContext = ethProtocolManager.ethContext();
     syncState = new SyncState(protocolContext.getBlockchain(), ethContext.getEthPeers());
   }
@@ -107,7 +110,8 @@ public class FullSyncChainDownloaderTotalTerminalDifficultyTest {
         ethContext,
         syncState,
         metricsSystem,
-        terminalCondition);
+        terminalCondition,
+        SyncDurationMetrics.NO_OP_SYNC_DURATION_METRICS);
   }
 
   private SynchronizerConfiguration.Builder syncConfigBuilder() {

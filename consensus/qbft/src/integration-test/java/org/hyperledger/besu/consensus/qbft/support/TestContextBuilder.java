@@ -91,13 +91,14 @@ import org.hyperledger.besu.ethereum.core.BlockBody;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderTestFixture;
 import org.hyperledger.besu.ethereum.core.Difficulty;
-import org.hyperledger.besu.ethereum.core.ImmutableMiningParameters;
-import org.hyperledger.besu.ethereum.core.ImmutableMiningParameters.MutableInitValues;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.ImmutableMiningConfiguration;
+import org.hyperledger.besu.ethereum.core.ImmutableMiningConfiguration.MutableInitValues;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.ethereum.core.ProtocolScheduleFixture;
 import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.eth.manager.EthContext;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
+import org.hyperledger.besu.ethereum.eth.transactions.BlobCache;
 import org.hyperledger.besu.ethereum.eth.transactions.ImmutableTransactionPoolConfiguration;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionBroadcaster;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
@@ -117,6 +118,7 @@ import org.hyperledger.besu.util.Subscribers;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -385,8 +387,8 @@ public class TestContextBuilder {
       final boolean useFixedBaseFee,
       final List<QbftFork> qbftForks) {
 
-    final MiningParameters miningParams =
-        ImmutableMiningParameters.builder()
+    final MiningConfiguration miningConfiguration =
+        ImmutableMiningConfiguration.builder()
             .mutableInitValues(
                 MutableInitValues.builder()
                     .isMiningEnabled(true)
@@ -436,14 +438,15 @@ public class TestContextBuilder {
             forksSchedule,
             BFT_EXTRA_DATA_ENCODER,
             EvmConfiguration.DEFAULT,
-            MiningParameters.MINING_DISABLED,
+            MiningConfiguration.MINING_DISABLED,
             new BadBlockManager(),
             false,
             new NoOpMetricsSystem());
 
     final BftValidatorOverrides validatorOverrides = convertBftForks(qbftForks);
     final TransactionSimulator transactionSimulator =
-        new TransactionSimulator(blockChain, worldStateArchive, protocolSchedule, 0L);
+        new TransactionSimulator(
+            blockChain, worldStateArchive, protocolSchedule, miningConfiguration, 0L);
 
     final BlockValidatorProvider blockValidatorProvider =
         BlockValidatorProvider.forkingValidatorProvider(
@@ -480,7 +483,8 @@ public class TestContextBuilder {
             mock(TransactionBroadcaster.class),
             ethContext,
             new TransactionPoolMetrics(metricsSystem),
-            poolConf);
+            poolConf,
+            new BlobCache());
 
     transactionPool.setEnabled();
 
@@ -493,7 +497,7 @@ public class TestContextBuilder {
             protocolContext,
             protocolSchedule,
             forksSchedule,
-            miningParams,
+            miningConfiguration,
             localAddress,
             BFT_EXTRA_DATA_ENCODER,
             ethScheduler);
@@ -510,7 +514,7 @@ public class TestContextBuilder {
             Util.publicKeyToAddress(nodeKey.getPublicKey()),
             proposerSelector,
             multicaster,
-            new RoundTimer(bftEventQueue, ROUND_TIMER_SEC, bftExecutors),
+            new RoundTimer(bftEventQueue, Duration.ofSeconds(ROUND_TIMER_SEC), bftExecutors),
             new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, TestClock.fixed()),
             blockCreatorFactory,
             clock);

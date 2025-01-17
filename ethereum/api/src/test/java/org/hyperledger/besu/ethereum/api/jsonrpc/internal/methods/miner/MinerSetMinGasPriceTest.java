@@ -24,18 +24,18 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorR
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcSuccessResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
-import org.hyperledger.besu.ethereum.core.MiningParameters;
+import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class MinerSetMinGasPriceTest {
-  MiningParameters miningParameters = MiningParameters.newDefault();
+  MiningConfiguration miningConfiguration = MiningConfiguration.newDefault();
   private MinerSetMinGasPrice method;
 
   @BeforeEach
   public void setUp() {
-    method = new MinerSetMinGasPrice(miningParameters);
+    method = new MinerSetMinGasPrice(miningConfiguration);
   }
 
   @Test
@@ -48,7 +48,7 @@ public class MinerSetMinGasPriceTest {
         new JsonRpcErrorResponse(
             request.getRequest().getId(),
             new JsonRpcError(
-                RpcErrorType.INVALID_PARAMS,
+                RpcErrorType.INVALID_MIN_GAS_PRICE_PARAMS,
                 "Illegal character '-' found at index 0 in hex binary representation"));
 
     final JsonRpcResponse actual = method.response(request);
@@ -64,7 +64,7 @@ public class MinerSetMinGasPriceTest {
 
     final JsonRpcResponse actual = method.response(request);
     assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
-    assertThat(miningParameters.getMinTransactionGasPrice())
+    assertThat(miningConfiguration.getMinTransactionGasPrice())
         .isEqualTo(Wei.fromHexString(newMinGasPrice));
   }
 

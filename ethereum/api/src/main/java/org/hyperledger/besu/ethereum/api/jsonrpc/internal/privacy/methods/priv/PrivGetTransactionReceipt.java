@@ -20,7 +20,9 @@ import org.hyperledger.besu.enclave.EnclaveClientException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.JsonRpcEnclaveErrorConverter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.RpcMethod;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonRpcParameters;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.JsonRpcMethod;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.privacy.methods.PrivacyIdProvider;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcSuccessResponse;
@@ -41,6 +43,7 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Deprecated(since = "24.12.0")
 public class PrivGetTransactionReceipt implements JsonRpcMethod {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrivGetTransactionReceipt.class);
@@ -66,7 +69,15 @@ public class PrivGetTransactionReceipt implements JsonRpcMethod {
   @Override
   public JsonRpcResponse response(final JsonRpcRequestContext requestContext) {
     LOG.trace("Executing {}", RpcMethod.PRIV_GET_TRANSACTION_RECEIPT.getMethodName());
-    final Hash pmtTransactionHash = requestContext.getRequiredParameter(0, Hash.class);
+    final Hash pmtTransactionHash;
+    try {
+      pmtTransactionHash = requestContext.getRequiredParameter(0, Hash.class);
+    } catch (JsonRpcParameterException e) {
+      throw new InvalidJsonRpcParameters(
+          "Invalid transaction hash parameter (index 0)",
+          RpcErrorType.INVALID_TRANSACTION_HASH_PARAMS,
+          e);
+    }
     final String enclaveKey = privacyIdProvider.getPrivacyUserId(requestContext.getUser());
 
     final ExecutedPrivateTransaction privateTransaction;

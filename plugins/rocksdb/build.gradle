@@ -20,7 +20,8 @@ jar {
       'Specification-Title': archiveBaseName,
       'Specification-Version': project.version,
       'Implementation-Title': archiveBaseName,
-      'Implementation-Version': calculateVersion()
+      'Implementation-Version': calculateVersion(),
+      'Commit-Hash': getGitCommitDetails(40).hash
       )
   }
 }
@@ -45,7 +46,6 @@ dependencies {
   implementation 'com.google.guava:guava'
   implementation 'info.picocli:picocli'
   implementation 'io.opentelemetry:opentelemetry-api'
-  implementation 'io.prometheus:simpleclient'
   implementation 'io.tmio:tuweni-bytes'
   implementation 'org.rocksdb:rocksdbjni'
   implementation project(path: ':ethereum:core')
@@ -57,6 +57,4 @@ dependencies {
   testImplementation 'org.junit.jupiter:junit-jupiter'
   testImplementation 'org.assertj:assertj-core'
   testImplementation 'org.mockito:mockito-junit-jupiter'
-
-  testRuntimeOnly 'org.junit.vintage:junit-vintage-engine'
 }

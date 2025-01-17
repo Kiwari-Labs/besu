@@ -15,14 +15,17 @@
 package org.hyperledger.besu.ethereum.eof;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.base.Splitter;
 import org.apache.tuweni.bytes.Bytes;
 
 import org.hyperledger.besu.ethereum.referencetests.EOFTestCaseSpec;
@@ -33,7 +36,6 @@ import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.code.CodeInvalid;
 import org.hyperledger.besu.evm.code.CodeV1;
 import org.hyperledger.besu.evm.code.EOFLayout;
-import org.hyperledger.besu.evm.code.EOFLayout.EOFContainerMode;
 import org.hyperledger.besu.testutil.JsonTestParameters;
 
 public class EOFReferenceTestTools {
@@ -41,7 +43,7 @@ public class EOFReferenceTestTools {
 
   static {
     final String eips =
-        System.getProperty("test.ethereum.eof.eips", "Prague,Osaka,Amsterdam,Bogota,Polis,Bangkok");
+        System.getProperty("test.ethereum.eof.eips", "Osaka,Amsterdam,Bogota,Polis,Bangkok");
     EIPS_TO_RUN = Arrays.asList(eips.split(","));
   }
 
@@ -80,26 +82,9 @@ public class EOFReferenceTestTools {
       params.ignoreAll();
     }
 
-    // TXCREATE still in tests, but has been removed
-    params.ignore("EOF1_undefined_opcodes_186");
+    // EOF was moved from Prague to Osaka
+    params.ignore("-Prague\\[");
 
-    // embedded containers rules changed
-    params.ignore("efValidation/EOF1_embedded_container-Prague\\[EOF1_embedded_container_\\d+\\]");
-
-    // truncated data is only allowed in embedded containers
-    params.ignore("ori/validInvalid-Prague\\[validInvalid_48\\]");
-    params.ignore("efExample/validInvalid-Prague\\[validInvalid_1\\]");
-    params.ignore("efValidation/EOF1_truncated_section-Prague\\[EOF1_truncated_section_3\\]");
-    params.ignore("efValidation/EOF1_truncated_section-Prague\\[EOF1_truncated_section_4\\]");
-    params.ignore("EIP3540/validInvalid-Prague\\[validInvalid_2\\]");
-    params.ignore("EIP3540/validInvalid-Prague\\[validInvalid_3\\]");
-
-    // Orphan containers are no longer allowed
-    params.ignore("efValidation/EOF1_returncontract_valid-Prague\\[EOF1_returncontract_valid_1\\]");
-    params.ignore("efValidation/EOF1_returncontract_valid-Prague\\[EOF1_returncontract_valid_2\\]");
-    params.ignore("efValidation/EOF1_eofcreate_valid-Prague\\[EOF1_eofcreate_valid_1\\]");
-    params.ignore("efValidation/EOF1_eofcreate_valid-Prague\\[EOF1_eofcreate_valid_2\\]");
-    params.ignore("efValidation/EOF1_section_order-Prague\\[EOF1_section_order_6\\]");
   }
 
   private EOFReferenceTestTools() {
@@ -113,16 +98,36 @@ public class EOFReferenceTestTools {
 
   @SuppressWarnings("java:S5960") // This is not production code, this is testing code.
   public static void executeTest(
+      final String name,
       final String fork,
       final Bytes code,
       final String containerKind,
       final EOFTestCaseSpec.TestResult expected) {
-    EVM evm = ReferenceTestProtocolSchedules.create().geSpecByName(fork).getEvm();
+    EVM evm = ReferenceTestProtocolSchedules.getInstance().geSpecByName(fork).getEvm();
     assertThat(evm).isNotNull();
 
     // hardwire in the magic byte transaction checks
     if (evm.getMaxEOFVersion() < 1) {
       assertThat(expected.exception()).isEqualTo("EOF_InvalidCode");
+    } else if (code.size() > evm.getMaxInitcodeSize()) {
+      // this check is in EOFCREATE and Transaction validator, but unit tests sniff it out.
+      assertThat(false)
+          .withFailMessage(
+              () ->
+                  "No Expected exception, actual exception - container_size_above_limit "
+                      + code.size())
+          .isEqualTo(expected.result());
+      if (name.contains("eip7692")) {
+        // if the test is from EEST, validate the exception name.
+        assertThat("container_size_above_limit")
+            .withFailMessage(
+                () ->
+                    "Expected exception: %s actual exception: %s %d"
+                        .formatted(
+                            expected.exception(), "container_size_above_limit ", code.size()))
+            .containsIgnoringCase(expected.exception().replace("EOFException.", ""));
+      }
+
     } else {
       EOFLayout layout = EOFLayout.parseEOF(code);
 
@@ -133,37 +138,40 @@ public class EOFReferenceTestTools {
         } else {
           parsedCode = evm.getCodeUncached(code);
         }
-        if ("EOF_IncompatibleContainerKind".equals(expected.exception()) && parsedCode.isValid()) {
-          EOFContainerMode expectedMode =
-              EOFContainerMode.valueOf(containerKind == null ? "RUNTIME" : containerKind);
-          EOFContainerMode containerMode =
-              ((CodeV1) parsedCode).getEofLayout().containerMode().get();
-          EOFContainerMode actualMode =
-              containerMode == null ? EOFContainerMode.RUNTIME : containerMode;
-          assertThat(actualMode)
-              .withFailMessage("Code did not parse to valid containerKind of " + expectedMode)
-              .isNotEqualTo(expectedMode);
-        } else {
+
+        if (expected.result()) {
           assertThat(parsedCode.isValid())
               .withFailMessage(
-                  () ->
-                      EOFLayout.parseEOF(code).prettyPrint()
-                          + "\nExpected exception :"
-                          + expected.exception()
-                          + " actual exception :"
-                          + (parsedCode.isValid()
-                              ? null
-                              : ((CodeInvalid) parsedCode).getInvalidReason()))
-              .isEqualTo(expected.result());
-
-          if (expected.result()) {
-            assertThat(code)
-                .withFailMessage("Container round trip failed")
-                .isEqualTo(layout.writeContainer(null));
+                  () -> "Valid code failed with " + ((CodeInvalid) parsedCode).getInvalidReason())
+              .isTrue();
+        } else if (parsedCode.isValid()) {
+          if (parsedCode instanceof CodeV1 codeV1
+              && expected.exception().contains("EOF_IncompatibleContainerKind")) {
+            // one last container type check
+            var parsedMode = codeV1.getEofLayout().containerMode().get();
+            String actual = parsedMode == null ? "RUNTIME" : parsedMode.toString();
+            String expectedContainerKind = containerKind == null ? "RUNTIME" : containerKind;
+            assertThat(actual)
+                .withFailMessage("EOF_IncompatibleContainerKind expected")
+                .isNotEqualTo(expectedContainerKind);
+          } else {
+            fail("Invalid code expected " + expected.exception() + " but was valid");
           }
+        } else if (name.contains("eip7692")) {
+          // if the test is from EEST, validate the exception name.
+          assertThat(((CodeInvalid) parsedCode).getInvalidReason())
+              .withFailMessage(
+                  () ->
+                      "Expected exception :%s actual exception: %s"
+                          .formatted(
+                              expected.exception(),
+                              (parsedCode.isValid()
+                                  ? null
+                                  : ((CodeInvalid) parsedCode).getInvalidReason())))
+              .containsIgnoringCase(expected.exception().replace("EOFException.", ""));
         }
       } else {
-        assertThat(layout.isValid())
+        assertThat(false)
             .withFailMessage(
                 () ->
                     "Expected exception - "
@@ -171,6 +179,25 @@ public class EOFReferenceTestTools {
                         + " actual exception - "
                         + (layout.isValid() ? null : layout.invalidReason()))
             .isEqualTo(expected.result());
+        if (name.contains("eip7692")) {
+          // if the test is from EEST, validate the exception name.
+          boolean exceptionMatched = false;
+          for (String e : Splitter.on('|').split(expected.exception())) {
+            if (layout
+                .invalidReason()
+                .toLowerCase(Locale.ROOT)
+                .contains(e.replace("EOFException.", "").toLowerCase(Locale.ROOT))) {
+              exceptionMatched = true;
+              break;
+            }
+          }
+          assertThat(exceptionMatched)
+              .withFailMessage(
+                  () ->
+                      "Expected exception :%s actual exception: %s"
+                          .formatted(expected.exception(), layout.invalidReason()))
+              .isTrue();
+        }
       }
     }
   }

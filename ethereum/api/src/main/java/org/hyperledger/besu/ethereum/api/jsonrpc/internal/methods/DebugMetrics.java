@@ -50,9 +50,9 @@ public class DebugMetrics implements JsonRpcMethod {
   private void addObservation(
       final Map<String, Object> observations, final Observation observation) {
     final Map<String, Object> categoryObservations =
-        getNextMapLevel(observations, observation.getCategory().getName());
-    if (observation.getLabels().isEmpty()) {
-      categoryObservations.put(observation.getMetricName(), observation.getValue());
+        getNextMapLevel(observations, observation.category().getName());
+    if (observation.labels().isEmpty()) {
+      categoryObservations.put(observation.metricName(), observation.value());
     } else {
       addLabelledObservation(categoryObservations, observation);
     }
@@ -60,18 +60,37 @@ public class DebugMetrics implements JsonRpcMethod {
 
   private void addLabelledObservation(
       final Map<String, Object> categoryObservations, final Observation observation) {
-    final List<String> labels = observation.getLabels();
-    Map<String, Object> values = getNextMapLevel(categoryObservations, observation.getMetricName());
+    final List<String> labels = observation.labels();
+    Map<String, Object> values = getNextMapLevel(categoryObservations, observation.metricName());
     for (int i = 0; i < labels.size() - 1; i++) {
       values = getNextMapLevel(values, labels.get(i));
     }
-    values.put(labels.get(labels.size() - 1), observation.getValue());
+    values.put(labels.get(labels.size() - 1), observation.value());
   }
 
   @SuppressWarnings("unchecked")
   private Map<String, Object> getNextMapLevel(
       final Map<String, Object> current, final String name) {
+    // Use compute to either return the existing map or create a new one
     return (Map<String, Object>)
-        current.computeIfAbsent(name, key -> new HashMap<String, Object>());
+        current.compute(
+            name,
+            (k, v) -> {
+              if (v instanceof Map) {
+                // If the value is already a Map, return it as is
+                return v;
+              } else {
+                // If the value is not a Map, create a new Map
+                Map<String, Object> newMap = new HashMap<>();
+                if (v != null) {
+                  // If v is not null and not a Map, we store it as a leaf value
+                  // If the original value was not null, store it under the "value" key
+                  // This handles cases where a metric value (e.g., Double) was previously stored
+                  // directly
+                  newMap.put("value", v);
+                }
+                return newMap;
+              }
+            });
   }
 }

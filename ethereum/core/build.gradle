@@ -22,7 +22,8 @@ jar {
       'Specification-Title': archiveBaseName,
       'Specification-Version': project.version,
       'Implementation-Title': archiveBaseName,
-      'Implementation-Version': calculateVersion()
+      'Implementation-Version': calculateVersion(),
+      'Commit-Hash': getGitCommitDetails(40).hash
       )
   }
 }
@@ -64,8 +65,6 @@ dependencies {
   implementation 'org.immutables:value-annotations'
   implementation 'tech.pegasys:jc-kzg-4844'
 
-  implementation 'io.prometheus:simpleclient_guava'
-
   implementation 'org.xerial.snappy:snappy-java'
 
   annotationProcessor 'org.immutables:value'
@@ -95,7 +94,6 @@ dependencies {
   integrationTestImplementation 'org.assertj:assertj-core'
   integrationTestImplementation 'org.junit.jupiter:junit-jupiter-api'
   integrationTestImplementation 'org.mockito:mockito-core'
-  integrationTestImplementation 'org.testcontainers:testcontainers'
   integrationTestImplementation 'io.tmio:tuweni-bytes'
 
   integrationTestRuntimeOnly 'org.junit.jupiter:junit-jupiter'
@@ -107,6 +105,8 @@ dependencies {
   testSupportImplementation 'org.junit.jupiter:junit-jupiter'
   testSupportImplementation 'org.assertj:assertj-core'
   testSupportImplementation 'org.mockito:mockito-core'
+  testSupportImplementation 'com.google.dagger:dagger'
+  testSupportAnnotationProcessor 'com.google.dagger:dagger-compiler'
 
   jmhImplementation project(path: ':config', configuration: 'testSupportArtifacts')
   jmhImplementation project(':crypto:algorithms')
