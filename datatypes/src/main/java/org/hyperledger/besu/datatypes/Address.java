@@ -95,6 +95,15 @@ public class Address extends DelegatingBytes {
   /** The constant BLS12_MAP_FP2_TO_G2. */
   public static final Address BLS12_MAP_FP2_TO_G2 = Address.precompiled(0x13);
 
+  /** The constant NATIVE_MINTER. */
+  public static final Address NATIVE_MINTER = Address.precompiled(0x1001);
+
+  /** The constant ADDRESS_REGISTRY. */
+  public static final Address ADDRESS_REGISTRY = Address.precompiled(0x1002);
+
+  /** The constant GASPRICE. */
+  public static final Address GASPRICE = Address.precompiled(0x1003);
+
   /** The constant ZERO. */
   public static final Address ZERO = Address.fromHexString("0x0");
 
