@@ -32,8 +32,8 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract {
-    private static final Logger LOG = LoggerFactory.getLogger(NativeMinterPrecompiledContract.class);
+public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
+    private static final Logger LOG = LoggerFactory.getLogger(GasPricePrecompiledContract.class);
 
     /** Ownable */
     private static final Bytes OWNER_SIGNATURE = Hash.keccak256(Bytes.of("owner()".getBytes(UTF_8))).slice(0, 4);
@@ -41,19 +41,25 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     private static final Bytes INITIALIZE_OWNER_SIGNATURE = Hash.keccak256(Bytes.of("initializeOwner(address)".getBytes(UTF_8))).slice(0, 4);
     private static final Bytes TRANSFER_OWNERSHIP_SIGNATURE = Hash.keccak256(Bytes.of("transferOwnership(address)".getBytes(UTF_8))).slice(0, 4);
 
-    /** NativeMinter */
-    private static final Bytes MINT_SIGNATURE = Hash.keccak256(Bytes.of("mint(address,uint256)".getBytes(UTF_8))).slice(0, 4);
+    /** GasPrice */
+    private static final Bytes GASPRICE_SIGNATURE = Hash.keccak256(Bytes.of("gasPrice()".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes ENABLE_SIGNATURE = Hash.keccak256(Bytes.of("enable()".getBytes(UTF_8))).slice(0, 4);;
+    private static final Bytes DISABLE_SIGNATURE = Hash.keccak256(Bytes.of("disable()".getBytes(UTF_8))).slice(0, 4); ;
+    private static final Bytes STATUS_SIGNATURE = Hash.keccak256(Bytes.of("status()".getBytes(UTF_8))).slice(0, 4);;
+    private static final Bytes SET_GASPRICE_SIGNATURE = Hash.keccak256(Bytes.of("setGasPrice(uint256)".getBytes(UTF_8))).slice(0, 4);
 
     /** Storage Layout */
     private static final UInt256 INIT = UInt256.ZERO;
     private static final UInt256 OWNER = UInt256.ONE;
+    private static final UInt256 STATUS = Uint256.valueOf(2L);
+    private static final UInt256 GASPRICE = Uint256.valueOf(3L);
 
     /** Returns */
     private static final Bytes FALSE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
     private static final Bytes TRUE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
-    public NativeMinterPrecompiledContract(final GasCalculator gasCalculator) {
-        super("NativeMinterPrecompiledContract", gasCalculator);
+    public GasPricePrecompiledContract(final GasCalculator gasCalculator) {
+        super("GasPricePrecompiledContract", gasCalculator);
     }
 
     private Bytes owner(final MutableAccount contract) {
@@ -83,7 +89,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
         return TRUE;
     }
 
-    private Bytes mint(final MutableAccount contract, MessageFrame messageFrame) {
+    private Bytes setGasPrice(final MutableAccount contract, MessageFrame messageFrame) {
     //     // check msg.sender is owner
     //     if not 
     //     do nothing.
@@ -97,7 +103,9 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     public long gasRequirement(final Bytes input) {
         final Bytes function = input.slice(0, 4);
         if (function.equals(OWNER_SIGNATURE) || 
-            function.equals(INITIALIZED_SIGNATURE)) {
+            function.equals(INITIALIZED_SIGNATURE) ||
+            function.equals(GASPRICE_SIGNATURE) || 
+            function.equals(STATUS_SIGNATURE)) {
             return 1000;
         } else {
             return 2000;
@@ -135,9 +143,29 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
                     transferOwnership(precompile, input)
                     );
             }
-            else if (function.equals(MINT_SIGNATURE)) {
+            else if (function.equals(GASPRICE_SIGNATURE)) {
                 return PrecompileContractResult.success(
-                    mint(precompile, input)
+                    gasPrice(precompile, input)
+                    );
+            }
+            else if (function.equals(STATUS_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    status(precompile, input)
+                    );
+            }
+            else if (function.equals(ENABLE_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    enable(precompile, input)
+                    );
+            }
+            else if (function.equals(DISABLE_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    disable(precompile, input)
+                    );
+            }
+            else if (function.equals(SET_GASPRICE_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    setGasPrice(precompile, input)
                     );
             } else {
                 // @TODO logging the invalid function signature.

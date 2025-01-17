@@ -32,8 +32,8 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract {
-    private static final Logger LOG = LoggerFactory.getLogger(NativeMinterPrecompiledContract.class);
+public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContract {
+    private static final Logger LOG = LoggerFactory.getLogger(AddressRegistryPrecompiledContract.class);
 
     /** Ownable */
     private static final Bytes OWNER_SIGNATURE = Hash.keccak256(Bytes.of("owner()".getBytes(UTF_8))).slice(0, 4);
@@ -41,8 +41,11 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     private static final Bytes INITIALIZE_OWNER_SIGNATURE = Hash.keccak256(Bytes.of("initializeOwner(address)".getBytes(UTF_8))).slice(0, 4);
     private static final Bytes TRANSFER_OWNERSHIP_SIGNATURE = Hash.keccak256(Bytes.of("transferOwnership(address)".getBytes(UTF_8))).slice(0, 4);
 
-    /** NativeMinter */
-    private static final Bytes MINT_SIGNATURE = Hash.keccak256(Bytes.of("mint(address,uint256)".getBytes(UTF_8))).slice(0, 4);
+    /** AddressRegistry */
+    private static final Bytes CONTAINS_SIGNATURE = Hash.keccak256(Bytes.of("contains(address)".getBytes(UTF_8))).slice(0, 4);
+    private static final Bytes DISCOVERY_SIGNATURE = Hash.keccak256(Bytes.of("discovery(address)".getBytes(UTF_8))).slice(0, 4);;
+    private static final Bytes ADD_TO_REGISTRY_SIGNATURE = Hash.keccak256(Bytes.of("addToRegistry(address,address)".getBytes(UTF_8))).slice(0, 4); ;
+    private static final Bytes REMOVE_FROM_REGISTRY_SIGNATURE = Hash.keccak256(Bytes.of("removeFromRegistry(address,address)".getBytes(UTF_8))).slice(0, 4);;
 
     /** Storage Layout */
     private static final UInt256 INIT = UInt256.ZERO;
@@ -52,8 +55,8 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     private static final Bytes FALSE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
     private static final Bytes TRUE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
-    public NativeMinterPrecompiledContract(final GasCalculator gasCalculator) {
-        super("NativeMinterPrecompiledContract", gasCalculator);
+    public AddressRegistryPrecompiledContract(final GasCalculator gasCalculator) {
+        super("AddressRegistryPrecompiledContract", gasCalculator);
     }
 
     private Bytes owner(final MutableAccount contract) {
@@ -83,13 +86,34 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
         return TRUE;
     }
 
-    private Bytes mint(final MutableAccount contract, MessageFrame messageFrame) {
+    private Bytes contains(final MutableAccount contract, MessageFrame messageFrame) {
+    //  if not contract.getStorageValue(slot) equal to Uint256.ZERO
+    //  return FALSE;
+    //  else 
+        return TRUE;
+    }
+
+    private Bytes discovery(final MutableAccount contract, MessageFrame messageFrame) {
+    //     return contract.getStorageValue(slot);
+    }
+
+    private Bytes addToRegistry(final MutableAccount contract, MessageFrame messageFrame) {
     //     // check msg.sender is owner
     //     if not 
     //     do nothing.
     //     return FALSE;
     //     else
-    //     to.incrementBalance(value);
+    //     contract.setStorageValue(slot, value);
+        return TRUE;
+    }
+
+    private Bytes removeFromRegistry(final MutableAccount contract, MessageFrame messageFrame) {
+    //     // check msg.sender is owner
+    //     if not 
+    //     do nothing.
+    //     return FALSE;
+    //     else
+    //     contract.setStorageValue(slot, Uint256.ZERO);
         return TRUE;
     }
 
@@ -97,7 +121,9 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     public long gasRequirement(final Bytes input) {
         final Bytes function = input.slice(0, 4);
         if (function.equals(OWNER_SIGNATURE) || 
-            function.equals(INITIALIZED_SIGNATURE)) {
+            function.equals(INITIALIZED_SIGNATURE) ||
+            function.equals(CONTAINS_SIGNATURE) || 
+            function.equals(DISCOVERY_SIGNATURE)) {
             return 1000;
         } else {
             return 2000;
@@ -135,9 +161,24 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
                     transferOwnership(precompile, input)
                     );
             }
-            else if (function.equals(MINT_SIGNATURE)) {
+            else if (function.equals(CONTAINS_SIGNATURE)) {
                 return PrecompileContractResult.success(
-                    mint(precompile, input)
+                    contains(precompile, input)
+                    );
+            }
+            else if (function.equals(DISCOVERY_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    discovery(precompile, input)
+                    );
+            }
+            else if (function.equals(ADD_TO_REGISTRY_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    addToRegistry(precompile, input)
+                    );
+            }
+            else if (function.equals(REMOVE_FROM_REGISTRY_SIGNATURE)) {
+                return PrecompileContractResult.success(
+                    removeFromRegistry(precompile, input)
                     );
             } else {
                 // @TODO logging the invalid function signature.
