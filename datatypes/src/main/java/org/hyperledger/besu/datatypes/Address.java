@@ -104,6 +104,9 @@ public class Address extends DelegatingBytes {
   /** The constant GASPRICE. */
   public static final Address GASPRICE = Address.precompiled(0x1003);
 
+  /** The constant REVENUE_RATIO */
+  public static final Address REVENUE_RATIO = Address.precompiled(0x1004);
+
   /** The constant ZERO. */
   public static final Address ZERO = Address.fromHexString("0x0");
 
