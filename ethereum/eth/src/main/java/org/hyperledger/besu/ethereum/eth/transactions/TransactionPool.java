@@ -303,7 +303,8 @@ public class TransactionPool implements BlockAddedObserver {
   }
 
   private boolean isMaxGasPriceBelowConfiguredMinGasPrice(final Transaction transaction) {
-    // @TODO if status of GASPRICE precompiled contract is `true` use the `gasPrice` from the contract.
+    // @TODO if status of GASPRICE precompiled contract is `true` use the `gasPrice` from the
+    // contract.
     return getMaxGasPrice(transaction)
         .map(g -> g.lessThan(configuration.getMinGasPrice()))
         .orElse(true);

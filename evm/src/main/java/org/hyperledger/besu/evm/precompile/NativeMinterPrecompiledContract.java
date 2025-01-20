@@ -1,5 +1,5 @@
 /*
- * Copyright Advanced Info Services PCL.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,135 +15,129 @@
 package org.hyperledger.besu.evm.precompile;
 
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.datatypes.Wei;
-import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
-import javax.annotation.Nonnull;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract {
-    private static final Logger LOG = LoggerFactory.getLogger(NativeMinterPrecompiledContract.class);
+  private static final Logger LOG = LoggerFactory.getLogger(NativeMinterPrecompiledContract.class);
 
-    /** Ownable */
-    private static final Bytes OWNER_SIGNATURE = Hash.keccak256(Bytes.of("owner()".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes INITIALIZED_SIGNATURE = Hash.keccak256(Bytes.of("initialized()".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes INITIALIZE_OWNER_SIGNATURE = Hash.keccak256(Bytes.of("initializeOwner(address)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes TRANSFER_OWNERSHIP_SIGNATURE = Hash.keccak256(Bytes.of("transferOwnership(address)".getBytes(UTF_8))).slice(0, 4);
+  /** Ownable */
+  private static final Bytes OWNER_SIGNATURE =
+      Hash.keccak256(Bytes.of("owner()".getBytes(UTF_8))).slice(0, 4);
 
-    /** NativeMinter */
-    private static final Bytes MINT_SIGNATURE = Hash.keccak256(Bytes.of("mint(address,uint256)".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes INITIALIZED_SIGNATURE =
+      Hash.keccak256(Bytes.of("initialized()".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes INITIALIZE_OWNER_SIGNATURE =
+      Hash.keccak256(Bytes.of("initializeOwner(address)".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes TRANSFER_OWNERSHIP_SIGNATURE =
+      Hash.keccak256(Bytes.of("transferOwnership(address)".getBytes(UTF_8))).slice(0, 4);
 
-    /** Storage Layout */
-    private static final UInt256 INIT = UInt256.ZERO;
-    private static final UInt256 OWNER = UInt256.ONE;
+  /** NativeMinter */
+  private static final Bytes MINT_SIGNATURE =
+      Hash.keccak256(Bytes.of("mint(address,uint256)".getBytes(UTF_8))).slice(0, 4);
 
-    /** Returns */
-    private static final Bytes FALSE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
-    private static final Bytes TRUE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
+  /** Storage Layout */
+  private static final UInt256 INIT = UInt256.ZERO;
 
-    public NativeMinterPrecompiledContract(final GasCalculator gasCalculator) {
-        super("NativeMinterPrecompiledContract", gasCalculator);
-    }
+  private static final UInt256 OWNER = UInt256.ONE;
 
-    private Bytes owner(final MutableAccount contract) {
-        return contract.getStorageValue(OWNER);
-    }
+  /** Returns */
+  private static final Bytes FALSE =
+      Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
 
-    private Bytes initialized(final MutableAccount contract) {
-        return contract.getStorageValue(INIT);
-    }
+  private static final Bytes TRUE =
+      Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
-    private Bytes initializeOwner(final MutableAccount contract, MessageFrame messageFrame) {
+  public NativeMinterPrecompiledContract(final GasCalculator gasCalculator) {
+    super("NativeMinterPrecompiledContract", gasCalculator);
+  }
+
+  private Bytes owner(final MutableAccount contract) {
+    return contract.getStorageValue(OWNER);
+  }
+
+  private Bytes initialized(final MutableAccount contract) {
+    return contract.getStorageValue(INIT);
+  }
+
+  private Bytes initializeOwner(final MutableAccount contract, MessageFrame messageFrame) {
     //      if contract.getStorageValue(INIT) == ONE
     //      do nothing.
     //      return FALSE
     //      else
     //      contract.setStorageValue(INIT, UInt256.ONE);
-        return TRUE;
-    }
+    return TRUE;
+  }
 
-    private Bytes transferOwnership(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes transferOwnership(final MutableAccount contract, MessageFrame messageFrame) {
     //      // check msg.sender is owner
-    //      if not 
+    //      if not
     //      do nothing.
     //      return FALSE;
     //      else
     //      contract.setStorageValue(OWNER, neOwner);
-        return TRUE;
-    }
+    return TRUE;
+  }
 
-    private Bytes mint(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes mint(final MutableAccount contract, MessageFrame messageFrame) {
     //     // check msg.sender is owner
-    //     if not 
+    //     if not
     //     do nothing.
     //     return FALSE;
     //     else
     //     to.incrementBalance(value);
-        return TRUE;
-    }
+    return TRUE;
+  }
 
-    @Override
-    public long gasRequirement(final Bytes input) {
-        final Bytes function = input.slice(0, 4);
-        if (function.equals(OWNER_SIGNATURE) || 
-            function.equals(INITIALIZED_SIGNATURE)) {
-            return 1000;
-        } else {
-            return 2000;
-        }
+  @Override
+  public long gasRequirement(final Bytes input) {
+    final Bytes function = input.slice(0, 4);
+    if (function.equals(OWNER_SIGNATURE) || function.equals(INITIALIZED_SIGNATURE)) {
+      return 1000;
+    } else {
+      return 2000;
     }
+  }
 
-    @Nonnull
-    @Override
-    public PrecompileContractResult computePrecompile(final Bytes input, @Nonnull final MessageFrame messageFrame) {
-        // @TODO try catch style.
-        if (input.isEmpty()) {
-            return PrecompileContractResult.halt(
+  @Nonnull
+  @Override
+  public PrecompileContractResult computePrecompile(
+      final Bytes input, @Nonnull final MessageFrame messageFrame) {
+    // @TODO try catch style.
+    if (input.isEmpty()) {
+      return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
-        } else { 
-            final Bytes function = input.slice(0, 4);
-            final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
-            final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
-            if (function.equals(OWNER_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    owner(precompile)
-                    );
-            } 
-            else if (function.equals(INITIALIZED_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    initialized(precompile)
-                    );
-            }
-            else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    initializeOwner(precompile, input)
-                    );
-            }
-            else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    transferOwnership(precompile, input)
-                    );
-            }
-            else if (function.equals(MINT_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    mint(precompile, input)
-                    );
-            } else {
-                // @TODO logging the invalid function signature.
-                LOG.info("Failed interface not found");
-                return PrecompileContractResult.halt(null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
-            }
-        }
+    } else {
+      final Bytes function = input.slice(0, 4);
+      final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
+      final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
+      if (function.equals(OWNER_SIGNATURE)) {
+        return PrecompileContractResult.success(owner(precompile));
+      } else if (function.equals(INITIALIZED_SIGNATURE)) {
+        return PrecompileContractResult.success(initialized(precompile));
+      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
+        return PrecompileContractResult.success(initializeOwner(precompile, input));
+      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
+        return PrecompileContractResult.success(transferOwnership(precompile, input));
+      } else if (function.equals(MINT_SIGNATURE)) {
+        return PrecompileContractResult.success(mint(precompile, input));
+      } else {
+        // @TODO logging the invalid function signature.
+        LOG.info("Failed interface not found");
+        return PrecompileContractResult.halt(
+            null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
+      }
     }
+  }
 }

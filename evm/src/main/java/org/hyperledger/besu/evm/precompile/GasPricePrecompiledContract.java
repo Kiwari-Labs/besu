@@ -1,5 +1,5 @@
 /*
- * Copyright Advanced Info Services PCL.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,163 +15,154 @@
 package org.hyperledger.besu.evm.precompile;
 
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.datatypes.Wei;
-import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
-import javax.annotation.Nonnull;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
-    private static final Logger LOG = LoggerFactory.getLogger(GasPricePrecompiledContract.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GasPricePrecompiledContract.class);
 
-    /** Ownable */
-    private static final Bytes OWNER_SIGNATURE = Hash.keccak256(Bytes.of("owner()".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes INITIALIZED_SIGNATURE = Hash.keccak256(Bytes.of("initialized()".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes INITIALIZE_OWNER_SIGNATURE = Hash.keccak256(Bytes.of("initializeOwner(address)".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes TRANSFER_OWNERSHIP_SIGNATURE = Hash.keccak256(Bytes.of("transferOwnership(address)".getBytes(UTF_8))).slice(0, 4);
+  /** Ownable */
+  private static final Bytes OWNER_SIGNATURE =
+      Hash.keccak256(Bytes.of("owner()".getBytes(UTF_8))).slice(0, 4);
 
-    /** GasPrice */
-    private static final Bytes GASPRICE_SIGNATURE = Hash.keccak256(Bytes.of("gasPrice()".getBytes(UTF_8))).slice(0, 4);
-    private static final Bytes ENABLE_SIGNATURE = Hash.keccak256(Bytes.of("enable()".getBytes(UTF_8))).slice(0, 4);;
-    private static final Bytes DISABLE_SIGNATURE = Hash.keccak256(Bytes.of("disable()".getBytes(UTF_8))).slice(0, 4); ;
-    private static final Bytes STATUS_SIGNATURE = Hash.keccak256(Bytes.of("status()".getBytes(UTF_8))).slice(0, 4);;
-    private static final Bytes SET_GASPRICE_SIGNATURE = Hash.keccak256(Bytes.of("setGasPrice(uint256)".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes INITIALIZED_SIGNATURE =
+      Hash.keccak256(Bytes.of("initialized()".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes INITIALIZE_OWNER_SIGNATURE =
+      Hash.keccak256(Bytes.of("initializeOwner(address)".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes TRANSFER_OWNERSHIP_SIGNATURE =
+      Hash.keccak256(Bytes.of("transferOwnership(address)".getBytes(UTF_8))).slice(0, 4);
 
-    /** Storage Layout */
-    private static final UInt256 INIT = UInt256.ZERO;
-    private static final UInt256 OWNER = UInt256.ONE;
-    private static final UInt256 STATUS = Uint256.valueOf(2L);
-    private static final UInt256 GASPRICE = Uint256.valueOf(3L);
+  /** Status */
+  private static final Bytes ENABLE_SIGNATURE =
+      Hash.keccak256(Bytes.of("enable()".getBytes(UTF_8))).slice(0, 4);
 
-    /** Returns */
-    private static final Bytes FALSE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
-    private static final Bytes TRUE = Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
+  private static final Bytes DISABLE_SIGNATURE =
+      Hash.keccak256(Bytes.of("disable()".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes STATUS_SIGNATURE =
+      Hash.keccak256(Bytes.of("status()".getBytes(UTF_8))).slice(0, 4);
 
-    public GasPricePrecompiledContract(final GasCalculator gasCalculator) {
-        super("GasPricePrecompiledContract", gasCalculator);
-    }
+  /** GasPrice */
+  private static final Bytes GASPRICE_SIGNATURE =
+      Hash.keccak256(Bytes.of("gasPrice()".getBytes(UTF_8))).slice(0, 4);
 
-    private Bytes owner(final MutableAccount contract) {
-        return contract.getStorageValue(OWNER);
-    }
+  private static final Bytes SET_GASPRICE_SIGNATURE =
+      Hash.keccak256(Bytes.of("setGasPrice(uint256)".getBytes(UTF_8))).slice(0, 4);
 
-    private Bytes initialized(final MutableAccount contract) {
-        return contract.getStorageValue(INIT);
-    }
+  /** Storage Layout */
+  private static final UInt256 INIT = UInt256.ZERO;
 
-    private Bytes initializeOwner(final MutableAccount contract, MessageFrame messageFrame) {
+  private static final UInt256 OWNER = UInt256.ONE;
+  private static final UInt256 STATUS = Uint256.valueOf(2L);
+  private static final UInt256 GASPRICE = Uint256.valueOf(3L);
+
+  /** Returns */
+  private static final Bytes FALSE =
+      Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
+
+  private static final Bytes TRUE =
+      Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
+
+  public GasPricePrecompiledContract(final GasCalculator gasCalculator) {
+    super("GasPricePrecompiledContract", gasCalculator);
+  }
+
+  private Bytes owner(final MutableAccount contract) {
+    return contract.getStorageValue(OWNER);
+  }
+
+  private Bytes initialized(final MutableAccount contract) {
+    return contract.getStorageValue(INIT);
+  }
+
+  private Bytes initializeOwner(final MutableAccount contract, MessageFrame messageFrame) {
     //      if contract.getStorageValue(INIT) == ONE
     //      do nothing.
     //      return FALSE
     //      else
     //      contract.setStorageValue(INIT, UInt256.ONE);
-        return TRUE;
-    }
+    return TRUE;
+  }
 
-    private Bytes transferOwnership(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes transferOwnership(final MutableAccount contract, MessageFrame messageFrame) {
     //      // check msg.sender is owner
-    //      if not 
+    //      if not
     //      do nothing.
     //      return FALSE;
     //      else
     //      contract.setStorageValue(OWNER, neOwner);
-        return TRUE;
-    }
+    return TRUE;
+  }
 
-    private Bytes setGasPrice(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes setGasPrice(final MutableAccount contract, MessageFrame messageFrame) {
     //     // check msg.sender is owner
-    //     if not 
+    //     if not
     //     do nothing.
     //     return FALSE;
     //     else
     //     to.incrementBalance(value);
-        return TRUE;
-    }
+    return TRUE;
+  }
 
-    @Override
-    public long gasRequirement(final Bytes input) {
-        final Bytes function = input.slice(0, 4);
-        if (function.equals(OWNER_SIGNATURE) || 
-            function.equals(INITIALIZED_SIGNATURE) ||
-            function.equals(GASPRICE_SIGNATURE) || 
-            function.equals(STATUS_SIGNATURE)) {
-            return 1000;
-        } else {
-            return 2000;
-        }
+  @Override
+  public long gasRequirement(final Bytes input) {
+    final Bytes function = input.slice(0, 4);
+    if (function.equals(OWNER_SIGNATURE)
+        || function.equals(INITIALIZED_SIGNATURE)
+        || function.equals(GASPRICE_SIGNATURE)
+        || function.equals(STATUS_SIGNATURE)) {
+      return 1000;
+    } else {
+      return 2000;
     }
+  }
 
-    @Nonnull
-    @Override
-    public PrecompileContractResult computePrecompile(final Bytes input, @Nonnull final MessageFrame messageFrame) {
-        // @TODO try catch style.
-        if (input.isEmpty()) {
-            return PrecompileContractResult.halt(
+  @Nonnull
+  @Override
+  public PrecompileContractResult computePrecompile(
+      final Bytes input, @Nonnull final MessageFrame messageFrame) {
+    // @TODO try catch style.
+    if (input.isEmpty()) {
+      return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
-        } else { 
-            final Bytes function = input.slice(0, 4);
-            final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
-            final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
-            if (function.equals(OWNER_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    owner(precompile)
-                    );
-            } 
-            else if (function.equals(INITIALIZED_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    initialized(precompile)
-                    );
-            }
-            else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    initializeOwner(precompile, input)
-                    );
-            }
-            else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    transferOwnership(precompile, input)
-                    );
-            }
-            else if (function.equals(GASPRICE_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    gasPrice(precompile, input)
-                    );
-            }
-            else if (function.equals(STATUS_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    status(precompile, input)
-                    );
-            }
-            else if (function.equals(ENABLE_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    enable(precompile, input)
-                    );
-            }
-            else if (function.equals(DISABLE_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    disable(precompile, input)
-                    );
-            }
-            else if (function.equals(SET_GASPRICE_SIGNATURE)) {
-                return PrecompileContractResult.success(
-                    setGasPrice(precompile, input)
-                    );
-            } else {
-                // @TODO logging the invalid function signature.
-                LOG.info("Failed interface not found");
-                return PrecompileContractResult.halt(null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
-            }
-        }
+    } else {
+      final Bytes function = input.slice(0, 4);
+      final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
+      final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
+      if (function.equals(OWNER_SIGNATURE)) {
+        return PrecompileContractResult.success(owner(precompile));
+      } else if (function.equals(INITIALIZED_SIGNATURE)) {
+        return PrecompileContractResult.success(initialized(precompile));
+      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
+        return PrecompileContractResult.success(initializeOwner(precompile, input));
+      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
+        return PrecompileContractResult.success(transferOwnership(precompile, input));
+      } else if (function.equals(GASPRICE_SIGNATURE)) {
+        return PrecompileContractResult.success(gasPrice(precompile, input));
+      } else if (function.equals(STATUS_SIGNATURE)) {
+        return PrecompileContractResult.success(status(precompile, input));
+      } else if (function.equals(ENABLE_SIGNATURE)) {
+        return PrecompileContractResult.success(enable(precompile, input));
+      } else if (function.equals(DISABLE_SIGNATURE)) {
+        return PrecompileContractResult.success(disable(precompile, input));
+      } else if (function.equals(SET_GASPRICE_SIGNATURE)) {
+        return PrecompileContractResult.success(setGasPrice(precompile, input));
+      } else {
+        // @TODO logging the invalid function signature.
+        LOG.info("Failed interface not found");
+        return PrecompileContractResult.halt(
+            null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
+      }
     }
+  }
 }
