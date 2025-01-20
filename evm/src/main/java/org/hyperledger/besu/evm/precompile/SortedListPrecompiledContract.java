@@ -1,5 +1,5 @@
 /*
- * Copyright contributors to Hyperledger Besu.
+ * Copyright Kiwari Labs.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -33,9 +33,9 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
+public class SortedListPrecompiledContract extends AbstractPrecompiledContract {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SCDLLPrecompiledContract.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SortedListPrecompiledContract.class);
 
   // TODO Define MAX_SIZE for safety,
   // we should not allowing iterate the list and take too long.
@@ -57,7 +57,6 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
   static final Bytes FALSE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
 
-  /** The constant TRUE. */
   public static final Bytes TRUE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
@@ -89,8 +88,8 @@ public class SCDLLPrecompiledContract extends AbstractPrecompiledContract {
   private static final Bytes MAX_SIZE_SIGNATURE =
       Hash.keccak256(Bytes.of("max_size(uint256)".getBytes(UTF_8))).slice(0, 4);
 
-  public SCDLLPrecompiledContract(final GasCalculator gasCalculator) {
-    super("SCDLLPrecompiledContract", gasCalculator);
+  public SortedListPrecompiledContract(final GasCalculator gasCalculator) {
+    super("SortedListPrecompiledContract", gasCalculator);
   }
 
   // calculateStorageSlot for the element

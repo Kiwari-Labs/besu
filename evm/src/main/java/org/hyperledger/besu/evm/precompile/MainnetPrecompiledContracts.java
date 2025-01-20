@@ -45,12 +45,13 @@ public interface MainnetPrecompiledContracts {
     registry.put(Address.RIPEMD160, new RIPEMD160PrecompiledContract(gasCalculator));
     registry.put(Address.ID, new IDPrecompiledContract(gasCalculator));
 
+    // stateful-precompile
     registry.put(
         Address.fromHexString("0x0100000000000000000000000000000000000001"),
         new StatefulPrecompiledContract(gasCalculator));
     registry.put(
         Address.fromHexString("0x0100000000000000000000000000000000000002"),
-        new SCDLLPrecompiledContract(gasCalculator));
+        new SortedListPrecompiledContract(gasCalculator));
   }
 
   /**
