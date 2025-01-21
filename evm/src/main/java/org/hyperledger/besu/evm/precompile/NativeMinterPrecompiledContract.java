@@ -1,5 +1,5 @@
 /*
- * Copyright contributors to Besu.
+ * Copyright Advanced Info Services PCL.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -63,6 +63,16 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     super("NativeMinterPrecompiledContract", gasCalculator);
   }
 
+  /** Modifier */
+  private Bytes onlyOwner(final MutableAccount contract, Address senderAddress) {
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER));
+    if (storedOwner.equals(senderAddress)) {
+      return TRUE;
+    } else {
+      return FALSE;
+    }
+  }
+
   private Bytes owner(final MutableAccount contract) {
     return contract.getStorageValue(OWNER);
   }
@@ -71,33 +81,35 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     return contract.getStorageValue(INIT);
   }
 
-  private Bytes initializeOwner(final MutableAccount contract, MessageFrame messageFrame) {
-    //      if contract.getStorageValue(INIT) == ONE
-    //      do nothing.
-    //      return FALSE
-    //      else
-    //      contract.setStorageValue(INIT, UInt256.ONE);
+  private Bytes initializeOwner(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (initialized(contract).equals(ONE)) {
+      return FALSE;
+    } else {
+      contract.setStorageValue(INIT, UInt256.ONE);
+    // extract/slice address from messageFrame
+    // contract.setStorageValue(OWNER, initialOwner);
     return TRUE;
+    }
   }
 
-  private Bytes transferOwnership(final MutableAccount contract, MessageFrame messageFrame) {
-    //      // check msg.sender is owner
-    //      if not
-    //      do nothing.
-    //      return FALSE;
-    //      else
-    //      contract.setStorageValue(OWNER, neOwner);
-    return TRUE;
+  private Bytes transferOwnership(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, messageFrame).equals(ONE)) {
+      return FALSE;
+    } else {
+    // extract/slice address from messageFrame
+    // contract.setStorageValue(OWNER, neOwner);
+      return TRUE;
+    }
   }
 
-  private Bytes mint(final MutableAccount contract, MessageFrame messageFrame) {
-    //     // check msg.sender is owner
-    //     if not
-    //     do nothing.
-    //     return FALSE;
-    //     else
-    //     to.incrementBalance(value);
+  private Bytes mint(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, messageFrame).equals(ONE)) {
+      return FALSE;
+    } else {
+    // extract/slice address and value from messageFrame
+    // to.incrementBalance(value);
     return TRUE;
+    }
   }
 
   @Override
@@ -120,18 +132,20 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
       final Bytes function = input.slice(0, 4);
+      final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
       final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
+      final Address senderAddress = 
       if (function.equals(OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-        return PrecompileContractResult.success(initializeOwner(precompile, input));
+        return PrecompileContractResult.success(initializeOwner(precompile, input, calldata));
       } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
-        return PrecompileContractResult.success(transferOwnership(precompile, input));
+        return PrecompileContractResult.success(transferOwnership(precompile, input, calldata));
       } else if (function.equals(MINT_SIGNATURE)) {
-        return PrecompileContractResult.success(mint(precompile, input));
+        return PrecompileContractResult.success(mint(precompile, input, calldata));
       } else {
         // @TODO logging the invalid function signature.
         LOG.info("Failed interface not found");

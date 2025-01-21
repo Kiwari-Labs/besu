@@ -1,5 +1,5 @@
 /*
- * Copyright contributors to Besu.
+ * Copyright Advanced Info Services PCL.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -63,7 +63,9 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   private static final UInt256 INIT = UInt256.ZERO;
 
   private static final UInt256 OWNER = UInt256.ONE;
+
   private static final UInt256 STATUS = Uint256.valueOf(2L);
+
   private static final UInt256 GASPRICE = Uint256.valueOf(3L);
 
   /** Returns */
@@ -77,6 +79,16 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
     super("GasPricePrecompiledContract", gasCalculator);
   }
 
+  /** Modifier */
+  private Bytes onlyOwner(final MutableAccount contract, Address senderAddress) {
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER));
+    if (storedOwner.equals(senderAddress)) {
+      return TRUE;
+    } else {
+      return FALSE;
+    }
+  }
+
   private Bytes owner(final MutableAccount contract) {
     return contract.getStorageValue(OWNER);
   }
@@ -85,33 +97,35 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
     return contract.getStorageValue(INIT);
   }
 
-  private Bytes initializeOwner(final MutableAccount contract, MessageFrame messageFrame) {
-    //      if contract.getStorageValue(INIT) == ONE
-    //      do nothing.
-    //      return FALSE
-    //      else
-    //      contract.setStorageValue(INIT, UInt256.ONE);
+  private Bytes initializeOwner(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (initialized(contract).equals(ONE)) {
+      return FALSE;
+    } else {
+      contract.setStorageValue(INIT, UInt256.ONE);
+    // extract/slice address from messageFrame
+    // contract.setStorageValue(OWNER, initialOwner);
     return TRUE;
+    }
   }
 
-  private Bytes transferOwnership(final MutableAccount contract, MessageFrame messageFrame) {
-    //      // check msg.sender is owner
-    //      if not
-    //      do nothing.
-    //      return FALSE;
-    //      else
-    //      contract.setStorageValue(OWNER, neOwner);
-    return TRUE;
+  private Bytes transferOwnership(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, messageFrame).equals(ONE)) {
+      return FALSE;
+    } else {
+    // extract/slice address from messageFrame
+    // contract.setStorageValue(OWNER, neOwner);
+      return TRUE;
+    }
   }
 
   private Bytes setGasPrice(final MutableAccount contract, MessageFrame messageFrame) {
-    //     // check msg.sender is owner
-    //     if not
-    //     do nothing.
-    //     return FALSE;
-    //     else
-    //     to.incrementBalance(value);
-    return TRUE;
+    if (onlyOwner(contract, messageFrame).equals(ONE)) {
+      return FALSE;
+    } else {
+    // extract/slice value from messageFrame
+    // contract.setStorageValue(GASPRICE, value);
+      return TRUE;
+    }
   }
 
   @Override
