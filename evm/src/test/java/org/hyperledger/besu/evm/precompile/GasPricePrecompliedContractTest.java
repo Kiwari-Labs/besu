@@ -14,12 +14,8 @@
  */
 package org.hyperledger.besu.evm.precompile;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-
-import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.gascalculator.FrontierCalculator;
-
 class GasPricePrecompiledContractTest {
-    /** @TODO */
+  /**
+   * @TODO
+   */
 }

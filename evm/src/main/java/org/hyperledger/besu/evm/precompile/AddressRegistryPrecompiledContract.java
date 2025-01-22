@@ -14,6 +14,9 @@
  */
 package org.hyperledger.besu.evm.precompile;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -59,11 +62,11 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
   ;
 
   /** Storage Layout */
-  private static final UInt256 INIT = UInt256.ZERO;
+  private static final UInt256 INIT_SLOT = UInt256.ZERO;
 
-  private static final UInt256 OWNER = UInt256.ONE;
+  private static final UInt256 OWNER_SLOT = UInt256.ONE;
 
-  /** @TODO mapping storage */ 
+  private static final UInt256 REGISTRY_SLOT = UInt256.valueOf(2L);
 
   /** Returns */
   private static final Bytes FALSE =
@@ -78,7 +81,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER));
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -86,67 +89,76 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     }
   }
 
+  private UInt256 storageSlot(final Address address) {
+    final Bytes slotKey = Bytes.concatenate(REGISTRY, address);
+    return UInt256.fromBytes(Bytes32.leftPad(Hash.keccak256(slotKey)));
+  }
+
   private Bytes owner(final MutableAccount contract) {
-    return contract.getStorageValue(OWNER);
+    return contract.getStorageValue(OWNER_SLOT);
   }
 
   private Bytes initialized(final MutableAccount contract) {
-    return contract.getStorageValue(INIT);
+    return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+  private Bytes initializeOwner(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (initialized(contract).equals(ONE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(INIT, UInt256.ONE);
-    // extract/slice address from messageFrame
-    // contract.setStorageValue(OWNER, initialOwner);
-    return TRUE;
+      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
+      // extract/slice address from messageFrame
+      // contract.setStorageValue(OWNER_SLOT, calldata);
+      return TRUE;
     }
   }
 
-  private Bytes transferOwnership(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, messageFrame).equals(ONE)) {
+  private Bytes transferOwnership(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, senderAddress).equals(ONE)) {
       return FALSE;
     } else {
-    // extract/slice address from messageFrame
-    // contract.setStorageValue(OWNER, neOwner);
+      // extract/slice address from messageFrame
+      // contract.setStorageValue(OWNER_SLOT, calldata);
       return TRUE;
     }
   }
 
-  private Bytes contains(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes contains(final MutableAccount contract, final Bytes calldata) {
     // extract/slice address from messageFrame
-    // calculateStorageSlot
-    // if (contract.getStorageValue(slot)).equals(Uint256.ZERO) {
+    // final UInt256 slot = storageSlot(address);
+    // if (contract.getStorageValue(slot)).equals(UInt256.ZERO) {
     //   return FALSE;
     // } else
-      return TRUE;
-    }
+    return TRUE;
+    // }
   }
 
-  private Bytes discovery(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes discovery(final MutableAccount contract, final Bytes calldata) {
     //     return contract.getStorageValue(slot);
   }
 
-  private Bytes addToRegistry(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes addToRegistry(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner().equals(senderAddress)) {
       return FALSE;
     } else {
-    // extract/slice address from messageFrame
-    // calculateStorageSlot
-    // contract.setStorageValue(slot, value);
+      // extract/slice address from messageFrame
+      // final UInt256 slot = storageSlot(address);
+      // contract.setStorageValue(slot, UInt256.ONE);
       return TRUE;
     }
   }
 
-  private Bytes removeFromRegistry(final MutableAccount contract, MessageFrame messageFrame) {
+  private Bytes removeFromRegistry(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner().equals(senderAddress)) {
       return FALSE;
     } else {
-    // extract/slice address from messageFrame
-    // calculateStorageSlot
-    // contract.setStorageValue(slot, Uint256.ZERO);
+      // extract/slice address from messageFrame
+      // final UInt256 slot = storageSlot(address);
+      // contract.setStorageValue(slot, UInt256.ZERO);
       return TRUE;
     }
   }
@@ -158,8 +170,10 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
         || function.equals(INITIALIZED_SIGNATURE)
         || function.equals(CONTAINS_SIGNATURE)
         || function.equals(DISCOVERY_SIGNATURE)) {
+      // gas cost for read operation.
       return 1000;
     } else {
+      // gas cost for write operation.
       return 2000;
     }
   }
@@ -174,24 +188,28 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
       final Bytes function = input.slice(0, 4);
+      final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
-      final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
+      final Address senderAddress = messageFrame.getSenderAddress();
+      final MutableAccount precompile = worldUpdater.getOrCreate(Address.ADDRESS_REGISTRY);
       if (function.equals(OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-        return PrecompileContractResult.success(initializeOwner(precompile, input));
+        return PrecompileContractResult.success(initializeOwner(precompile, calldata));
       } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
-        return PrecompileContractResult.success(transferOwnership(precompile, input));
+        return PrecompileContractResult.success(
+            transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(CONTAINS_SIGNATURE)) {
-        return PrecompileContractResult.success(contains(precompile, input));
+        return PrecompileContractResult.success(contains(precompile, calldata));
       } else if (function.equals(DISCOVERY_SIGNATURE)) {
-        return PrecompileContractResult.success(discovery(precompile, input));
+        return PrecompileContractResult.success(discovery(precompile, calldata));
       } else if (function.equals(ADD_TO_REGISTRY_SIGNATURE)) {
-        return PrecompileContractResult.success(addToRegistry(precompile, input));
+        return PrecompileContractResult.success(addToRegistry(precompile, senderAddress, calldata));
       } else if (function.equals(REMOVE_FROM_REGISTRY_SIGNATURE)) {
-        return PrecompileContractResult.success(removeFromRegistry(precompile, input));
+        return PrecompileContractResult.success(
+            removeFromRegistry(precompile, senderAddress, calldata));
       } else {
         // @TODO logging the invalid function signature.
         LOG.info("Failed interface not found");

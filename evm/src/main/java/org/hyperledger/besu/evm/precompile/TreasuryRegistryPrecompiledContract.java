@@ -21,7 +21,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
 import java.util.Optional;
@@ -32,8 +31,9 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract {
-  private static final Logger LOG = LoggerFactory.getLogger(RevenueRatioPrecompiledContract.class);
+public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledContract {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(TreasuryRegistryPrecompiledContract.class);
 
   /** Ownable */
   private static final Bytes OWNER_SIGNATURE =
@@ -46,40 +46,19 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   private static final Bytes TRANSFER_OWNERSHIP_SIGNATURE =
       Hash.keccak256(Bytes.of("transferOwnership(address)".getBytes(UTF_8))).slice(0, 4);
 
-  /** Status */
-  private static final Bytes ENABLE_SIGNATURE =
-      Hash.keccak256(Bytes.of("enable()".getBytes(UTF_8))).slice(0, 4);
+  /** TreasuryRegistry */
+  private static final Bytes TREASURY_AT_SIGNATURE =
+      Hash.keccak256(Bytes.of("treasuryAt()".getBytes(UTF_8))).slice(0, 4);
 
-  private static final Bytes DISABLE_SIGNATURE =
-      Hash.keccak256(Bytes.of("disable()".getBytes(UTF_8))).slice(0, 4);
-  private static final Bytes STATUS_SIGNATURE =
-      Hash.keccak256(Bytes.of("status()".getBytes(UTF_8))).slice(0, 4);
-
-  /** RevenueRatio */
-  private static final Bytes CONTRACT_RATIO_SIGNATURE =
-      Hash.keccak256(Bytes.of("contractRatio()".getBytes(UTF_8))).slice(0, 4);
-
-  private static final Bytes COINBASE_RATIO_SIGNATURE =
-      Hash.keccak256(Bytes.of("coinbaseRatio()".getBytes(UTF_8))).slice(0, 4);
-  private static final Bytes PROVIDER_RATIO_SIGNATURE =
-      Hash.keccak256(Bytes.of("providerRatio()".getBytes(UTF_8))).slice(0, 4);
-  private static final Bytes TREASURY_RATIO_SIGNATURE =
-      Hash.keccak256(Bytes.of("treasuryRatio()".getBytes(UTF_8))).slice(0, 4);
-  private static final Bytes SET_REVENUE_RATIO_SIGNATURE =
-      Hash.keccak256(Bytes.of("setRevenueRatio()".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes SET_TREASURY_SIGNATURE =
+      Hash.keccak256(Bytes.of("setTreasury(address)".getBytes(UTF_8))).slice(0, 4);
 
   /** Storage Layout */
   private static final UInt256 INIT_SLOT = UInt256.ZERO;
 
   private static final UInt256 OWNER_SLOT = UInt256.ONE;
 
-  private static final UInt256 CONTRACT_RATIO_SLOT = UInt256.valueOf(2L);
-
-  private static final UInt256 COINBASE_RATIO_SLOT = UInt256.valueOf(3L);
-
-  private static final UInt256 PROVIDER_RATIO_SLOT = UInt256.valueOf(4L);
-
-  private static final UInt256 TREASURY_RATIO_SLOT = UInt256.valueOf(5L);
+  private static final UInt256 TREASURY_SLOT = UInt256.valueOf(2L);
 
   /** Returns */
   private static final Bytes FALSE =
@@ -88,13 +67,9 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   private static final Bytes TRUE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
-  public RevenueRatioPrecompiledContract(final GasCalculator gasCalculator) {
-    super("RevenueRatioPrecompiledContract", gasCalculator);
-  }
-
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER));
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -115,7 +90,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(INIT_SLOT, TRUE);
+      contract.setStorageValue(INIT, TRUE);
       // extract/slice address from messageFrame
       // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
@@ -124,7 +99,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(ONE)) {
+    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
       // extract/slice address from messageFrame
@@ -133,53 +108,30 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     }
   }
 
-  private Bytes enable(final MutableAccount contract, Address senderAddress) {
+  private Bytes treasuryAt(final MutableAccount contract) {
+    return contract.getStorageValue(TREASURY_SLOT);
+  }
+
+  private Bytes setTreasury(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(STATUS_SLOT, TRUE);
+      // extract/slice address from messageFrame
+      // contract.setStorageValue(OWNER, neOwner);
       return TRUE;
     }
-  }
-
-  private Bytes disable(final MutableAccount contract, Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
-      return FALSE;
-    } else {
-      contract.setStorageValue(STATUS_SLOT, FALSE);
-      return TRUE;
-    }
-  }
-
-  private Bytes status(final MutableAccount contract) {
-    return contract.getStorageValue(STATUS_SLOT);
-  }
-
-  private Bytes contractRatio(final MutableAccount contract) {
-    return contract.getStorageValue(CONTRACT_RATIO_SLOT);
-  }
-
-  private Bytes coinbaseRatio(final MutableAccount contract) {
-    return contract.getStorageValue(COINBASE_RATIO_SLOT);
-  }
-
-  private Bytes providerRatio(final MutableAccount contract) {
-    return contract.getStorageValue(PROVIDER_RATIO_SLOT);
-  }
-
-  private Bytes treasuryRatio(final MutableAccount contract) {
-    return contract.getStorageValue(TREASURY_RATIO_SLOT);
   }
 
   @Override
   public long gasRequirement(final Bytes input) {
     final Bytes function = input.slice(0, 4);
-    if (function.equals(OWNER_SIGNATURE) || function.equals(INITIALIZED_SIGNATURE)) {
-      // gas cost for read operation.
-      return 1000;
-    } else {
-      // gas const for write operation.
+    if (function.equals(SET_TREASURY_SIGNATURE)) {
+      // gas cost for write operation.
       return 2000;
+    } else {
+      // gas const for read operation.
+      return 1000;
     }
   }
 
@@ -196,28 +148,20 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
       final Address senderAddress = messageFrame.getSenderAddress();
-      final MutableAccount precompile = worldUpdater.getOrCreate(Address.REVENUE_RATIO);
+      final MutableAccount precompile = worldUpdater.getOrCreate(Address.TREASURY);
       if (function.equals(OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-        return PrecompileContractResult.success(
-            initializeOwner(precompile, senderAddress, calldata));
+        return PrecompileContractResult.success(initializeOwner(precompile, calldata));
       } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
-      } else if (function.equals(CONTRACT_RATIO_SIGNATURE)) {
-        return PrecompileContractResult.success(contractRatio(precompile));
-      } else if (function.equals(COINBASE_RATIO_SIGNATURE)) {
-        return PrecompileContractResult.success(coinbaseRatio(precompile));
-      } else if (function.equals(PROVIDER_RATIO_SIGNATURE)) {
-        return PrecompileContractResult.success(providerRatio(precompile));
-      } else if (function.equals(TREASURY_RATIO_SIGNATURE)) {
-        return PrecompileContractResult.success(treasuryRatio(precompile));
-      } else if (function.equals(SET_REVENUE_RATIO_SIGNATURE)) {
-        return PrecompileContractResult.success(
-            setRevenueRatio(precompile, senderAddress, calldata));
+      } else if (function.equals(TREASURY_AT_SIGNATURE)) {
+        return PrecompileContractResult.success(treasuryAt(precompile));
+      } else if (function.equals(SET_TREASURY_SIGNATURE)) {
+        return PrecompileContractResult.success(setTreasury(precompile, senderAddress, calldata));
       } else {
         // @TODO logging the invalid function signature.
         LOG.info("Failed interface not found");

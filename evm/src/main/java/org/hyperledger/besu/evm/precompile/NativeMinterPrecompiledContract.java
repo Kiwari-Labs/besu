@@ -14,6 +14,9 @@
  */
 package org.hyperledger.besu.evm.precompile;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -48,9 +51,9 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
       Hash.keccak256(Bytes.of("mint(address,uint256)".getBytes(UTF_8))).slice(0, 4);
 
   /** Storage Layout */
-  private static final UInt256 INIT = UInt256.ZERO;
+  private static final UInt256 INIT_SLOT = UInt256.ZERO;
 
-  private static final UInt256 OWNER = UInt256.ONE;
+  private static final UInt256 OWNER_SLOT = UInt256.ONE;
 
   /** Returns */
   private static final Bytes FALSE =
@@ -65,7 +68,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER));
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -74,41 +77,44 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
   }
 
   private Bytes owner(final MutableAccount contract) {
-    return contract.getStorageValue(OWNER);
+    return contract.getStorageValue(OWNER_SLOT);
   }
 
   private Bytes initialized(final MutableAccount contract) {
-    return contract.getStorageValue(INIT);
+    return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (initialized(contract).equals(ONE)) {
+  private Bytes initializeOwner(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+    if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(INIT, UInt256.ONE);
-    // extract/slice address from messageFrame
-    // contract.setStorageValue(OWNER, initialOwner);
-    return TRUE;
-    }
-  }
-
-  private Bytes transferOwnership(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, messageFrame).equals(ONE)) {
-      return FALSE;
-    } else {
-    // extract/slice address from messageFrame
-    // contract.setStorageValue(OWNER, neOwner);
+      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
+      // extract/slice address from messageFrame
+      // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
   }
 
-  private Bytes mint(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, messageFrame).equals(ONE)) {
+  private Bytes transferOwnership(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-    // extract/slice address and value from messageFrame
-    // to.incrementBalance(value);
-    return TRUE;
+      // extract/slice address from messageFrame
+      // contract.setStorageValue(OWNER_SLOT, neOwner);
+      return TRUE;
+    }
+  }
+
+  private Bytes mint(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+      return FALSE;
+    } else {
+      // extract/slice address and value from messageFrame
+      // to.incrementBalance(value);
+      return TRUE;
     }
   }
 
@@ -134,18 +140,19 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
+      final Address senderAddress = messageFrame.getSenderAddress();
       final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
-      final Address senderAddress = 
       if (function.equals(OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-        return PrecompileContractResult.success(initializeOwner(precompile, input, calldata));
+        return PrecompileContractResult.success(initializeOwner(precompile, calldata));
       } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
-        return PrecompileContractResult.success(transferOwnership(precompile, input, calldata));
+        return PrecompileContractResult.success(
+            transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(MINT_SIGNATURE)) {
-        return PrecompileContractResult.success(mint(precompile, input, calldata));
+        return PrecompileContractResult.success(mint(precompile, senderAddress, calldata));
       } else {
         // @TODO logging the invalid function signature.
         LOG.info("Failed interface not found");

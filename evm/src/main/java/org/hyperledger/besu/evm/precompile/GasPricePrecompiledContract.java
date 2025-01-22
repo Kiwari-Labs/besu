@@ -14,6 +14,9 @@
  */
 package org.hyperledger.besu.evm.precompile;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -60,13 +63,13 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
       Hash.keccak256(Bytes.of("setGasPrice(uint256)".getBytes(UTF_8))).slice(0, 4);
 
   /** Storage Layout */
-  private static final UInt256 INIT = UInt256.ZERO;
+  private static final UInt256 INIT_SLOT = UInt256.ZERO;
 
-  private static final UInt256 OWNER = UInt256.ONE;
+  private static final UInt256 OWNER_SLOT = UInt256.ONE;
 
-  private static final UInt256 STATUS = Uint256.valueOf(2L);
+  private static final UInt256 STATUS_SLOT = UInt256.valueOf(2L);
 
-  private static final UInt256 GASPRICE = Uint256.valueOf(3L);
+  private static final UInt256 GASPRICE_SLOT = UInt256.valueOf(3L);
 
   /** Returns */
   private static final Bytes FALSE =
@@ -81,7 +84,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER));
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -90,40 +93,65 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   }
 
   private Bytes owner(final MutableAccount contract) {
-    return contract.getStorageValue(OWNER);
+    return contract.getStorageValue(OWNER_SLOT);
   }
 
   private Bytes initialized(final MutableAccount contract) {
-    return contract.getStorageValue(INIT);
+    return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (initialized(contract).equals(ONE)) {
+  private Bytes initializeOwner(
+      final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(INIT, UInt256.ONE);
-    // extract/slice address from messageFrame
-    // contract.setStorageValue(OWNER, initialOwner);
-    return TRUE;
-    }
-  }
-
-  private Bytes transferOwnership(final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, messageFrame).equals(ONE)) {
-      return FALSE;
-    } else {
-    // extract/slice address from messageFrame
-    // contract.setStorageValue(OWNER, neOwner);
+      contract.setStorageValue(INIT_SLOT, TRUE);
+      // extract/slice address from messageFrame
+      // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
   }
 
-  private Bytes setGasPrice(final MutableAccount contract, MessageFrame messageFrame) {
-    if (onlyOwner(contract, messageFrame).equals(ONE)) {
+  private Bytes transferOwnership(
+      final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-    // extract/slice value from messageFrame
-    // contract.setStorageValue(GASPRICE, value);
+      // extract/slice address from messageFrame
+      // contract.setStorageValue(OWNER,_SLOT neOwner);
+      return TRUE;
+    }
+  }
+
+  private Bytes enable(final MutableAccount contract, Address senderAddress) {
+    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+      return FALSE;
+    } else {
+      contract.setStorageValue(STATUS_SLOT, TRUE);
+      return TRUE;
+    }
+  }
+
+  private Bytes disable(final MutableAccount contract, Address senderAddress) {
+    if (onlyOwner(contract, senderAddress).equals(ONE)) {
+      return FALSE;
+    } else {
+      contract.setStorageValue(STATUS_SLOT, FALSE);
+      return TRUE;
+    }
+  }
+
+  private Bytes status(final MutableAccount contract) {
+    return contract.getStorageValue(STATUS_SLOT);
+  }
+
+  private Bytes setGasPrice(
+      final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+      return FALSE;
+    } else {
+      // extract/slice value from messageFrame
+      // contract.setStorageValue(GASPRICE_SLOT, value);
       return TRUE;
     }
   }
@@ -135,8 +163,10 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
         || function.equals(INITIALIZED_SIGNATURE)
         || function.equals(GASPRICE_SIGNATURE)
         || function.equals(STATUS_SIGNATURE)) {
+      // gas cost for read operation.
       return 1000;
     } else {
+      // gas cost for write operation.
       return 2000;
     }
   }
@@ -151,26 +181,29 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
       final Bytes function = input.slice(0, 4);
+      final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
-      final MutableAccount precompile = worldUpdater.getOrCreate(Address.NATIVE_MINTER);
+      final Address senderAddress = messageFrame.getSenderAddress();
+      final MutableAccount precompile = worldUpdater.getOrCreate(Address.GASPRICE);
       if (function.equals(OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-        return PrecompileContractResult.success(initializeOwner(precompile, input));
+        return PrecompileContractResult.success(initializeOwner(precompile, calldata));
       } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
-        return PrecompileContractResult.success(transferOwnership(precompile, input));
+        return PrecompileContractResult.success(
+            transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(GASPRICE_SIGNATURE)) {
-        return PrecompileContractResult.success(gasPrice(precompile, input));
+        return PrecompileContractResult.success(gasPrice(precompile));
       } else if (function.equals(STATUS_SIGNATURE)) {
-        return PrecompileContractResult.success(status(precompile, input));
+        return PrecompileContractResult.success(status(precompile));
       } else if (function.equals(ENABLE_SIGNATURE)) {
-        return PrecompileContractResult.success(enable(precompile, input));
+        return PrecompileContractResult.success(enable(precompile, senderAddress));
       } else if (function.equals(DISABLE_SIGNATURE)) {
-        return PrecompileContractResult.success(disable(precompile, input));
+        return PrecompileContractResult.success(disable(precompile, senderAddress));
       } else if (function.equals(SET_GASPRICE_SIGNATURE)) {
-        return PrecompileContractResult.success(setGasPrice(precompile, input));
+        return PrecompileContractResult.success(setGasPrice(precompile, senderAddress, calldata));
       } else {
         // @TODO logging the invalid function signature.
         LOG.info("Failed interface not found");

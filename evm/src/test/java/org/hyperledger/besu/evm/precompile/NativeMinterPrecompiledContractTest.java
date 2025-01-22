@@ -21,23 +21,26 @@ import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.FrontierGasCalculator;
 
 import org.junit.jupiter.api.Test;
+
 // import org.junit.jupiter.params.ParameterizedTest;
 // import org.junit.jupiter.params.provider.Arguments;
 // import org.junit.jupiter.params.provider.MethodSource;
 
 class NativeMinterPrecompiledContractTest {
-    /** @TODO */
-    private final NativeMinterPrecompiledContract contract =
+  /**
+   * @TODO
+   */
+  private final NativeMinterPrecompiledContract contract =
       new NativeMinterPrecompiledContract(new FrontierGasCalculator());
 
-    NativeMinterPrecompiledContractTest() {}
+  NativeMinterPrecompiledContractTest() {}
 
-    private final MessageFrame messageFrame = mock(MessageFrame.class);
+  private final MessageFrame messageFrame = mock(MessageFrame.class);
 
-    @Test
-    void dryRunDetector() {
-        assertThat(true)
+  @Test
+  void dryRunDetector() {
+    assertThat(true)
         .withFailMessage("This test is here so gradle --dry-run executes this class")
         .isTrue();
-    }
+  }
 }
