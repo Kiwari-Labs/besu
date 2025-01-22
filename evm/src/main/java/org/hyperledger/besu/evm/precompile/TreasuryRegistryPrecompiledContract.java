@@ -91,7 +91,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
       return FALSE;
     } else {
       contract.setStorageValue(INIT, TRUE);
-      // extract/slice address from messageFrame
+      // final UInt256 initialOwner = calldata.slice(); // slice for address
       // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
@@ -102,8 +102,8 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
-      // contract.setStorageValue(OWNER_SLOT, neOwner);
+      // final UInt256 newOwner = calldata.slice(); // slice for address
+      // contract.setStorageValue(OWNER_SLOT, newOwner);
       return TRUE;
     }
   }
@@ -117,8 +117,8 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
-      // contract.setStorageValue(OWNER, neOwner);
+      // final UInt256 newTreasury = calldata.slice(); // slice for address
+      // contract.setStorageValue(TREASURY_SLOT, newTreasury);
       return TRUE;
     }
   }
@@ -126,7 +126,9 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
   @Override
   public long gasRequirement(final Bytes input) {
     final Bytes function = input.slice(0, 4);
-    if (function.equals(SET_TREASURY_SIGNATURE)) {
+    if (function.equals(INITIALIZE_OWNER_SIGNATURE) 
+        || function.equals(TRANSFER_OWNERSHIP_SIGNATURE) 
+        || function.equals(SET_TREASURY_SIGNATURE)) {
       // gas cost for write operation.
       return 2000;
     } else {

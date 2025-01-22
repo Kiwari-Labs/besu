@@ -66,7 +66,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   private static final Bytes TREASURY_RATIO_SIGNATURE =
       Hash.keccak256(Bytes.of("treasuryRatio()".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes SET_REVENUE_RATIO_SIGNATURE =
-      Hash.keccak256(Bytes.of("setRevenueRatio()".getBytes(UTF_8))).slice(0, 4);
+      Hash.keccak256(Bytes.of("setRevenueRatio(uint8,uint8,uint8,uint8)".getBytes(UTF_8))).slice(0, 4);
 
   /** Storage Layout */
   private static final UInt256 INIT_SLOT = UInt256.ZERO;
@@ -116,7 +116,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
       return FALSE;
     } else {
       contract.setStorageValue(INIT_SLOT, TRUE);
-      // extract/slice address from messageFrame
+      // final UInt256 initialOwner = calldata.slice(); // slice for address
       // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
@@ -127,8 +127,8 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     if (onlyOwner(contract, senderAddress).equals(ONE)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
-      // contract.setStorageValue(OWNER_SLOT, neOwner);
+      // final UInt256 newOwner = calldata.slice(); // slice for address
+      // contract.setStorageValue(OWNER_SLOT, newOwner);
       return TRUE;
     }
   }
@@ -171,10 +171,28 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     return contract.getStorageValue(TREASURY_RATIO_SLOT);
   }
 
+  private Bytes treasuryRatio(final MutableAccount contract, final Bytes calldata) {
+    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+      return FALSE;
+    } else {
+      // final UInt256 newContractRatio = calldata.slice(); // slice for UInt8
+      // final UInt256 newCoinbaseRatio = calldata.slice(); // slice for UInt8
+      // final UInt256 newProviderRatio = calldata.slice(); // slice for UInt8
+      // final UInt256 newTreasuryRatio = calldata.slice(); // slice for UInt8
+      return TRUE;
+    }
+  }
+
   @Override
   public long gasRequirement(final Bytes input) {
     final Bytes function = input.slice(0, 4);
-    if (function.equals(OWNER_SIGNATURE) || function.equals(INITIALIZED_SIGNATURE)) {
+    if (function.equals(OWNER_SIGNATURE) 
+        || function.equals(INITIALIZED_SIGNATURE) 
+        || function.equals(CONTRACT_RATIO_SIGNATURE) 
+        || function.equals(COINBASE_RATIO_SIGNATURE) 
+        || function.equals(PROVIDER_RATIO_SIGNATURE) 
+        || function.equals(TREASURY_RATIO_SIGNATURE) {
+        ) {
       // gas cost for read operation.
       return 1000;
     } else {

@@ -106,7 +106,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
       return FALSE;
     } else {
       contract.setStorageValue(INIT_SLOT, TRUE);
-      // extract/slice address from messageFrame
+      // final UInt256 initialOwner = calldata.slice(); // slice for address
       // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
@@ -117,8 +117,8 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
     if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
-      // contract.setStorageValue(OWNER,_SLOT neOwner);
+      // final UInt256 newOwner = calldata.slice(); // slice for address
+      // contract.setStorageValue(OWNER,_SLOT newOwner);
       return TRUE;
     }
   }
@@ -150,8 +150,8 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
     if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-      // extract/slice value from messageFrame
-      // contract.setStorageValue(GASPRICE_SLOT, value);
+      // final UInt256 newGasPrice = calldata.slice(); // ensure and pad to bytes32
+      // contract.setStorageValue(GASPRICE_SLOT, newGasPrice);
       return TRUE;
     }
   }

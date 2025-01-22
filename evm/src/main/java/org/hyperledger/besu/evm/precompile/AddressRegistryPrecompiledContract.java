@@ -108,8 +108,8 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
       return FALSE;
     } else {
       contract.setStorageValue(INIT_SLOT, UInt256.ONE);
-      // extract/slice address from messageFrame
-      // contract.setStorageValue(OWNER_SLOT, calldata);
+      // final UInt256 initialOwner = calldata.slice(); // slice for address
+      // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
   }
@@ -119,16 +119,16 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     if (onlyOwner(contract, senderAddress).equals(ONE)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
-      // contract.setStorageValue(OWNER_SLOT, calldata);
+      // final UInt256 newOwner = calldata.slice(); // slice for address
+      // contract.setStorageValue(OWNER_SLOT, newOwner);
       return TRUE;
     }
   }
 
   private Bytes contains(final MutableAccount contract, final Bytes calldata) {
-    // extract/slice address from messageFrame
+    // final UInt256 address = calldata.slice(); // slice for address
     // final UInt256 slot = storageSlot(address);
-    // if (contract.getStorageValue(slot)).equals(UInt256.ZERO) {
+    // if (contract.getStorageValue(slot)).equals(FALSE) {
     //   return FALSE;
     // } else
     return TRUE;
@@ -144,9 +144,9 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     if (onlyOwner().equals(senderAddress)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
+      // final UInt256 address = calldata.slice(); // slice for address
       // final UInt256 slot = storageSlot(address);
-      // contract.setStorageValue(slot, UInt256.ONE);
+      // contract.setStorageValue(slot, TRUE);
       return TRUE;
     }
   }
@@ -156,9 +156,9 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     if (onlyOwner().equals(senderAddress)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
+      // final UInt256 address = calldata.slice(); // slice for address
       // final UInt256 slot = storageSlot(address);
-      // contract.setStorageValue(slot, UInt256.ZERO);
+      // contract.setStorageValue(slot, FALSE);
       return TRUE;
     }
   }

@@ -8,12 +8,17 @@
 
 [Download](https://github.com/hyperledger/besu/releases)
 
-@aiscorp-blockchain/besu is a forked of `hypelerledger/besu`.  
+`@aiscorp-blockchain/besu` is a forked of `hypelerledger/besu`.  
 Besu is an Apache 2.0 licensed, MainNet compatible, Ethereum client written in Java.
 
-## Additional Feature
+## Additional Feature differ form original Besu
 
-* Stateful-precompiled contract includes `NativeMinter`, `AddressRegistry`, `GasPrice`, and others.
+- Enables control of the `runtime` through a stateful precompiled contract, including components such as `NativeMinter`, `AddressRegistry`, `GasPrice`, `RevenueRatio`, and `TreasuryRegistry`.
+- `NativeMinter` Facilitates on-chain minting of the native token.  
+- `AddressRegistry` A general-purpose address registry, usable for shared whitelists or blacklists.  
+- `GasPrice` Enables remote configuration of the minimum `gasPrice`, applied uniformly across all nodes.  
+- `RevenueRatio` Configures the reward ratio for distributing transaction fees.  
+- `TreasuryRegistry` Manages the treasury address used for distributing rewards to the treasury.  
 
 ## Useful Links
 

@@ -90,7 +90,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
       return FALSE;
     } else {
       contract.setStorageValue(INIT_SLOT, UInt256.ONE);
-      // extract/slice address from messageFrame
+      // final UInt256 initialOwner = calldata.slice(); // slice for address
       // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
@@ -101,18 +101,19 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-      // extract/slice address from messageFrame
-      // contract.setStorageValue(OWNER_SLOT, neOwner);
+      // final UInt256 newOwner = calldata.slice(); // slice for address
+      // contract.setStorageValue(OWNER_SLOT, newOwner);
       return TRUE;
     }
   }
 
   private Bytes mint(
-      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract, final WorldUpdater worldUpdater, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner(contract, senderAddress).equals(TRUE)) {
       return FALSE;
     } else {
-      // extract/slice address and value from messageFrame
+      // final Address address = calldata.slice(); // slice for address
+      // final MutableAccount to = worldUpdater.getOrCreate(address);
       // to.incrementBalance(value);
       return TRUE;
     }
@@ -152,7 +153,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(MINT_SIGNATURE)) {
-        return PrecompileContractResult.success(mint(precompile, senderAddress, calldata));
+        return PrecompileContractResult.success(mint(precompile, worldUpdater, senderAddress, calldata));
       } else {
         // @TODO logging the invalid function signature.
         LOG.info("Failed interface not found");
