@@ -102,29 +102,35 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
 
   private Bytes initializeOwner(
       final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (initialized(contract).equals(TRUE)) {
+    if (initialized(contract).equals(FALSE)) {
       return FALSE;
     } else {
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (initialOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER_SLOT, initialOwner);
       contract.setStorageValue(INIT_SLOT, TRUE);
-      // final UInt256 initialOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
   }
 
   private Bytes transferOwnership(
       final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER,_SLOT newOwner);
+      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (newOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER,_SLOT newOwner);
       return TRUE;
     }
   }
 
   private Bytes enable(final MutableAccount contract, Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
       contract.setStorageValue(STATUS_SLOT, TRUE);
@@ -133,7 +139,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   }
 
   private Bytes disable(final MutableAccount contract, Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(ONE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
       contract.setStorageValue(STATUS_SLOT, FALSE);
@@ -147,11 +153,11 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
 
   private Bytes setGasPrice(
       final MutableAccount contract, Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newGasPrice = calldata.slice(); // ensure and pad to bytes32
-      // contract.setStorageValue(GASPRICE_SLOT, newGasPrice);
+      final UInt256 newGasPrice = UInt256.fromBytes(calldata.slice(0, 32));
+      contract.setStorageValue(GASPRICE_SLOT, newGasPrice);
       return TRUE;
     }
   }

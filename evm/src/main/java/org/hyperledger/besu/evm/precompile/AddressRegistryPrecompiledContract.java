@@ -51,9 +51,6 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
   private static final Bytes CONTAINS_SIGNATURE =
       Hash.keccak256(Bytes.of("contains(address)".getBytes(UTF_8))).slice(0, 4);
 
-  private static final Bytes DISCOVERY_SIGNATURE =
-      Hash.keccak256(Bytes.of("discovery(address)".getBytes(UTF_8))).slice(0, 4);
-  ;
   private static final Bytes ADD_TO_REGISTRY_SIGNATURE =
       Hash.keccak256(Bytes.of("addToRegistry(address,address)".getBytes(UTF_8))).slice(0, 4);
   ;
@@ -89,8 +86,9 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     }
   }
 
+  // for calculate storage slot of mapping(address => bool)
   private UInt256 storageSlot(final Address address) {
-    final Bytes slotKey = Bytes.concatenate(REGISTRY, address);
+    final Bytes slotKey = Bytes.concatenate(REGISTRY.toBytes(), address.toBytes());
     return UInt256.fromBytes(Bytes32.leftPad(Hash.keccak256(slotKey)));
   }
 
@@ -104,61 +102,66 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
 
   private Bytes initializeOwner(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (initialized(contract).equals(ONE)) {
+    if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
-      // final UInt256 initialOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, initialOwner);
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (initialOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER_SLOT, initialOwner);
+      contract.setStorageValue(INIT_SLOT, TRUE);
       return TRUE;
     }
   }
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(ONE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, newOwner);
-      return TRUE;
+      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (newOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER,_SLOT newOwner);
     }
   }
 
   private Bytes contains(final MutableAccount contract, final Bytes calldata) {
-    // final UInt256 address = calldata.slice(); // slice for address
-    // final UInt256 slot = storageSlot(address);
-    // if (contract.getStorageValue(slot)).equals(FALSE) {
-    //   return FALSE;
-    // } else
-    return TRUE;
-    // }
+    final Address address = Address.wrap(calldata.slice(0, 20));
+    final UInt256 slot = storageSlot(address);
+    if (contract.getStorageValue(slot)).equals(FALSE) {
+      return FALSE;
+    } else
+      return TRUE;
+    }
   }
 
-  private Bytes discovery(final MutableAccount contract, final Bytes calldata) {
-    //     return contract.getStorageValue(slot);
-  }
+  // private Bytes discovery(final MutableAccount contract, final Bytes calldata) {
+  //   //     return contract.getStorageValue(slot);
+  // }
 
   private Bytes addToRegistry(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner().equals(senderAddress)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 address = calldata.slice(); // slice for address
-      // final UInt256 slot = storageSlot(address);
-      // contract.setStorageValue(slot, TRUE);
+      final Address address = Address.wrap(calldata.slice(0, 20));
+      final UInt256 slot = storageSlot(address);
+      contract.setStorageValue(slot, TRUE);
       return TRUE;
     }
   }
 
   private Bytes removeFromRegistry(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner().equals(senderAddress)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 address = calldata.slice(); // slice for address
-      // final UInt256 slot = storageSlot(address);
-      // contract.setStorageValue(slot, FALSE);
+      final Address address = Address.wrap(calldata.slice(0, 20));
+      final UInt256 slot = storageSlot(address);
+      contract.setStorageValue(slot, FALSE);
       return TRUE;
     }
   }
@@ -168,8 +171,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     final Bytes function = input.slice(0, 4);
     if (function.equals(OWNER_SIGNATURE)
         || function.equals(INITIALIZED_SIGNATURE)
-        || function.equals(CONTAINS_SIGNATURE)
-        || function.equals(DISCOVERY_SIGNATURE)) {
+        || function.equals(CONTAINS_SIGNATURE)) {
       // gas cost for read operation.
       return 1000;
     } else {
@@ -203,8 +205,6 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(CONTAINS_SIGNATURE)) {
         return PrecompileContractResult.success(contains(precompile, calldata));
-      } else if (function.equals(DISCOVERY_SIGNATURE)) {
-        return PrecompileContractResult.success(discovery(precompile, calldata));
       } else if (function.equals(ADD_TO_REGISTRY_SIGNATURE)) {
         return PrecompileContractResult.success(addToRegistry(precompile, senderAddress, calldata));
       } else if (function.equals(REMOVE_FROM_REGISTRY_SIGNATURE)) {

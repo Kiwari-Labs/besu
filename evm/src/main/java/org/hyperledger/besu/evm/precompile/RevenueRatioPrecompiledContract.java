@@ -115,26 +115,31 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (initialOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER_SLOT, initialOwner);
       contract.setStorageValue(INIT_SLOT, TRUE);
-      // final UInt256 initialOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, initialOwner);
       return TRUE;
     }
   }
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(ONE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, newOwner);
-      return TRUE;
+      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (newOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER,_SLOT newOwner);
     }
   }
 
   private Bytes enable(final MutableAccount contract, Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
       contract.setStorageValue(STATUS_SLOT, TRUE);
@@ -143,7 +148,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   }
 
   private Bytes disable(final MutableAccount contract, Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
       contract.setStorageValue(STATUS_SLOT, FALSE);
@@ -172,13 +177,22 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   }
 
   private Bytes treasuryRatio(final MutableAccount contract, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newContractRatio = calldata.slice(); // slice for UInt8
-      // final UInt256 newCoinbaseRatio = calldata.slice(); // slice for UInt8
-      // final UInt256 newProviderRatio = calldata.slice(); // slice for UInt8
-      // final UInt256 newTreasuryRatio = calldata.slice(); // slice for UInt8
+      final UInt256 newContractRatio = UInt256.fromBytes(calldata.slice(0, 1));
+      final UInt256 newCoinbaseRatio = UInt256.fromBytes(calldata.slice(1, 1));
+      final UInt256 newProviderRatio = UInt256.fromBytes(calldata.slice(2, 1));
+      final UInt256 newTreasuryRatio = UInt256.fromBytes(calldata.slice(3, 1));
+      if (newContractRatio.toLong() + newCoinbaseRatio.toLong() 
+          + newProviderRatio.toLong() + newTreasuryRatio.toLong() != 100) {
+        return FALSE; // Ratios must sum exactly to 100
+      }
+      contract.setStorageValue(CONTRACT_RATIO_SLOT, newContractRatio);
+      contract.setStorageValue(COINBASE_RATIO_SLOT, newCoinbaseRatio);
+      contract.setStorageValue(PROVIDER_RATIO_SLOT, newProviderRatio);
+      contract.setStorageValue(TREASURY_RATIO_SLOT, newTreasuryRatio);
+
       return TRUE;
     }
   }

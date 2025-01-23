@@ -89,32 +89,41 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
-      // final UInt256 initialOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, initialOwner);
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (initialOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER_SLOT, initialOwner);
+      contract.setStorageValue(INIT_SLOT, TRUE);
       return TRUE;
     }
   }
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, newOwner);
-      return TRUE;
+      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (newOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER,_SLOT newOwner);
     }
   }
 
   private Bytes mint(
       final MutableAccount contract, final WorldUpdater worldUpdater, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final Address address = calldata.slice(); // slice for address
-      // final MutableAccount to = worldUpdater.getOrCreate(address);
-      // to.incrementBalance(value);
+      final Address recipientAddress = Address.wrap(calldata.slice(0, 20));
+      final UInt256 value = UInt256.fromBytes(calldata.slice(20));
+      if (value.isZero()) {
+        return FALSE;
+      }
+      final MutableAccount recipientAccount  = worldUpdater.getOrCreate(recipientAddress);
+      recipientAccount.incrementBalance(value.toWei());
       return TRUE;
     }
   }

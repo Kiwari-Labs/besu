@@ -90,21 +90,26 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(INIT, TRUE);
-      // final UInt256 initialOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, initialOwner);
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (initialOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER_SLOT, initialOwner);
+      contract.setStorageValue(INIT_SLOT, TRUE);
       return TRUE;
     }
   }
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newOwner = calldata.slice(); // slice for address
-      // contract.setStorageValue(OWNER_SLOT, newOwner);
-      return TRUE;
+      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (newOwner.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(OWNER,_SLOT newOwner);
     }
   }
 
@@ -114,11 +119,14 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
 
   private Bytes setTreasury(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(TRUE)) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      // final UInt256 newTreasury = calldata.slice(); // slice for address
-      // contract.setStorageValue(TREASURY_SLOT, newTreasury);
+      final UInt256 newTreasury = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      if (newTreasury.equals(UInt256.ZERO)) {
+        return FALSE;
+      }
+      contract.setStorageValue(TREASURY_SLOT, newTreasury);
       return TRUE;
     }
   }
