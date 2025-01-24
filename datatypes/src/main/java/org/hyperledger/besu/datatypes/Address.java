@@ -229,8 +229,8 @@ public class Address extends DelegatingBytes {
    * @return the address
    */
   public static Address precompiled(final int value) {
-    // Keep it simple while we don't need precompiled above 127.
-    checkArgument(value < Byte.MAX_VALUE);
+    // https://eips.ethereum.org/EIPS/eip-1352
+    checkArgument(value <= 65535);
     final byte[] address = new byte[SIZE];
     address[SIZE - 1] = (byte) value;
     return new Address(Bytes.wrap(address));

@@ -28,7 +28,7 @@ public class PrecompileContractRegistry {
 
   /** Instantiates a new Precompile contract registry. */
   public PrecompileContractRegistry() {
-    this.precompiles = new HashMap<>(16);
+    this.precompiles = new HashMap<>(22);
   }
 
   /**

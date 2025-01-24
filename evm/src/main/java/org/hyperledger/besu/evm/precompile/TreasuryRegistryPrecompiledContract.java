@@ -33,7 +33,6 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledContract {
   private static final Logger LOG =
       LoggerFactory.getLogger(TreasuryRegistryPrecompiledContract.class);
@@ -92,8 +91,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(
-      final MutableAccount contract, final Bytes calldata) {
+  private Bytes initializeOwner(final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
@@ -142,8 +140,8 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
   @Override
   public long gasRequirement(final Bytes input) {
     final Bytes function = input.slice(0, 4);
-    if (function.equals(INITIALIZE_OWNER_SIGNATURE) 
-        || function.equals(TRANSFER_OWNERSHIP_SIGNATURE) 
+    if (function.equals(INITIALIZE_OWNER_SIGNATURE)
+        || function.equals(TRANSFER_OWNERSHIP_SIGNATURE)
         || function.equals(SET_TREASURY_SIGNATURE)) {
       // gas cost for write operation.
       return 2000;

@@ -67,7 +67,8 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   private static final Bytes TREASURY_RATIO_SIGNATURE =
       Hash.keccak256(Bytes.of("treasuryRatio()".getBytes(UTF_8))).slice(0, 4);
   private static final Bytes SET_REVENUE_RATIO_SIGNATURE =
-      Hash.keccak256(Bytes.of("setRevenueRatio(uint8,uint8,uint8,uint8)".getBytes(UTF_8))).slice(0, 4);
+      Hash.keccak256(Bytes.of("setRevenueRatio(uint8,uint8,uint8,uint8)".getBytes(UTF_8)))
+          .slice(0, 4);
 
   /** Storage Layout */
   private static final UInt256 INIT_SLOT = UInt256.ZERO;
@@ -113,8 +114,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(
-      final MutableAccount contract, final Bytes calldata) {
+  private Bytes initializeOwner(final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
@@ -180,7 +180,8 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     return contract.getStorageValue(TREASURY_RATIO_SLOT);
   }
 
-  private Bytes setRevenueRatio(final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+  private Bytes setRevenueRatio(
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
@@ -188,8 +189,11 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
       final UInt256 newCoinbaseRatio = UInt256.fromBytes(calldata.slice(1, 1));
       final UInt256 newProviderRatio = UInt256.fromBytes(calldata.slice(2, 1));
       final UInt256 newTreasuryRatio = UInt256.fromBytes(calldata.slice(3, 1));
-      if (newContractRatio.toLong() + newCoinbaseRatio.toLong() 
-          + newProviderRatio.toLong() + newTreasuryRatio.toLong() != 100) {
+      if (newContractRatio.toLong()
+              + newCoinbaseRatio.toLong()
+              + newProviderRatio.toLong()
+              + newTreasuryRatio.toLong()
+          != 100) {
         return FALSE; // Ratios must sum exactly to 100
       }
       contract.setStorageValue(CONTRACT_RATIO_SLOT, newContractRatio);
@@ -204,11 +208,11 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   @Override
   public long gasRequirement(final Bytes input) {
     final Bytes function = input.slice(0, 4);
-    if (function.equals(OWNER_SIGNATURE) 
-        || function.equals(INITIALIZED_SIGNATURE) 
-        || function.equals(CONTRACT_RATIO_SIGNATURE) 
-        || function.equals(COINBASE_RATIO_SIGNATURE) 
-        || function.equals(PROVIDER_RATIO_SIGNATURE) 
+    if (function.equals(OWNER_SIGNATURE)
+        || function.equals(INITIALIZED_SIGNATURE)
+        || function.equals(CONTRACT_RATIO_SIGNATURE)
+        || function.equals(COINBASE_RATIO_SIGNATURE)
+        || function.equals(PROVIDER_RATIO_SIGNATURE)
         || function.equals(TREASURY_RATIO_SIGNATURE)) {
       // gas cost for read operation.
       return 1000;
@@ -237,8 +241,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
-        return PrecompileContractResult.success(
-            initializeOwner(precompile, calldata));
+        return PrecompileContractResult.success(initializeOwner(precompile, calldata));
       } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));

@@ -101,8 +101,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
     return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(
-      final MutableAccount contract, final Bytes calldata) {
+  private Bytes initializeOwner(final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(FALSE)) {
       return FALSE;
     } else {

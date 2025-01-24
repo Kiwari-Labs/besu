@@ -101,8 +101,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(
-      final MutableAccount contract, final Bytes calldata) {
+  private Bytes initializeOwner(final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {

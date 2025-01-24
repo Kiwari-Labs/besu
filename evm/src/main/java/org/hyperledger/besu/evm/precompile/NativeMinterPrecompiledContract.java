@@ -86,8 +86,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     return contract.getStorageValue(INIT_SLOT);
   }
 
-  private Bytes initializeOwner(
-      final MutableAccount contract, final Bytes calldata) {
+  private Bytes initializeOwner(final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
@@ -116,7 +115,10 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
   }
 
   private Bytes mint(
-      final MutableAccount contract, final WorldUpdater worldUpdater, final Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract,
+      final WorldUpdater worldUpdater,
+      final Address senderAddress,
+      final Bytes calldata) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
@@ -125,7 +127,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
       if (value.isZero()) {
         return FALSE;
       }
-      final MutableAccount recipientAccount  = worldUpdater.getOrCreate(recipientAddress);
+      final MutableAccount recipientAccount = worldUpdater.getOrCreate(recipientAddress);
       recipientAccount.incrementBalance(Wei.of(value));
       return TRUE;
     }
@@ -165,7 +167,8 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(MINT_SIGNATURE)) {
-        return PrecompileContractResult.success(mint(precompile, worldUpdater, senderAddress, calldata));
+        return PrecompileContractResult.success(
+            mint(precompile, worldUpdater, senderAddress, calldata));
       } else {
         // @TODO logging the invalid function signature.
         LOG.info("Failed interface not found");
