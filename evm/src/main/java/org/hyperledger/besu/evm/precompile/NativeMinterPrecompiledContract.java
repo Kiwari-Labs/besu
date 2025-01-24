@@ -70,7 +70,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT).slice(12,20));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -90,7 +90,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      final UInt256 initialOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
+      final UInt256 initialOwner = UInt256.fromBytes(calldata);
       if (initialOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
@@ -105,7 +105,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
+      final UInt256 newOwner = UInt256.fromBytes(calldata);
       if (newOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
@@ -122,8 +122,8 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final Address recipientAddress = Address.wrap(calldata.slice(0, 20));
-      final UInt256 value = UInt256.fromBytes(calldata.slice(20));
+      final Address recipientAddress = Address.wrap(calldata.slice(12, 20));
+      final UInt256 value = UInt256.fromBytes(calldata.slice(32));
       if (value.isZero()) {
         return FALSE;
       }

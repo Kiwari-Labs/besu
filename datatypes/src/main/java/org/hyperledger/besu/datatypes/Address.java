@@ -91,19 +91,19 @@ public class Address extends DelegatingBytes {
   public static final Address BLS12_MAP_FP2_TO_G2 = Address.precompiled(0x11);
 
   /** The constant NATIVE_MINTER. */
-  public static final Address NATIVE_MINTER = Address.precompiled(0x1001);
+  public static final Address NATIVE_MINTER = Address.fromHexString("0x0000000000000000000000000000000000001001");
 
   /** The constant ADDRESS_REGISTRY. */
-  public static final Address ADDRESS_REGISTRY = Address.precompiled(0x1002);
+  public static final Address ADDRESS_REGISTRY = Address.fromHexString("0x0000000000000000000000000000000000001002");
 
   /** The constant GASPRICE. */
-  public static final Address GASPRICE = Address.precompiled(0x1003);
+  public static final Address GASPRICE = Address.fromHexString("0x0000000000000000000000000000000000001003");
 
   /** The constant REVENUE_RATIO */
-  public static final Address REVENUE_RATIO = Address.precompiled(0x1004);
+  public static final Address REVENUE_RATIO = Address.fromHexString("0x0000000000000000000000000000000000001004");
 
   /** The constant TREASURY_REGISTRY */
-  public static final Address TREASURY_REGISTRY = Address.precompiled(0x1005);
+  public static final Address TREASURY_REGISTRY = Address.fromHexString("0x0000000000000000000000000000000000001005");
 
   /** The constant ZERO. */
   public static final Address ZERO = Address.fromHexString("0x0");
@@ -229,8 +229,8 @@ public class Address extends DelegatingBytes {
    * @return the address
    */
   public static Address precompiled(final int value) {
-    // https://eips.ethereum.org/EIPS/eip-1352
-    checkArgument(value <= 65535);
+    // Keep it simple while we don't need precompiled above 127.
+    checkArgument(value < Byte.MAX_VALUE);
     final byte[] address = new byte[SIZE];
     address[SIZE - 1] = (byte) value;
     return new Address(Bytes.wrap(address));

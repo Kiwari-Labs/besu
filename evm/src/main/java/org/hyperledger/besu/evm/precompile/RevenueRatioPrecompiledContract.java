@@ -98,7 +98,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
+   final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT).slice(12,20));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -118,7 +118,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      final UInt256 initialOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
+      final UInt256 initialOwner = UInt256.fromBytes(calldata);
       if (initialOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
@@ -133,7 +133,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
+      final UInt256 newOwner = UInt256.fromBytes(calldata);
       if (newOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }

@@ -75,7 +75,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
+   final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT).slice(12,20));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -95,7 +95,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      final UInt256 initialOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
+      final UInt256 initialOwner = UInt256.fromBytes(calldata);
       if (initialOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
@@ -110,7 +110,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
+      final UInt256 newOwner = UInt256.fromBytes(calldata);
       if (newOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
@@ -128,7 +128,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newTreasury = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
+      final UInt256 newTreasury = UInt256.fromBytes(calldata);
       if (newTreasury.equals(UInt256.ZERO)) {
         return FALSE;
       }
@@ -162,6 +162,9 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     } else {
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
+      LOG.info("function selector {}",function);
+      LOG.info("calldata {}",calldata);
+      LOG.info("calldata {}",calldata.size());
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
       final Address senderAddress = messageFrame.getSenderAddress();
       final MutableAccount precompile = worldUpdater.getOrCreate(Address.TREASURY_REGISTRY);
