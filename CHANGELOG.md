@@ -1,6 +1,14 @@
 # Changelog
 
 ## Unreleased
+### Breaking Changes
+### Upcoming Breaking Changes
+### Additions and Improvements
+- Adds timestamps to enable Prague hardfork on Sepolia and Holesky test networks. [#8163](https://github.com/hyperledger/besu/pull/8163)
+### Bug fixes
+
+
+## 25.1.0
 
 ### Breaking Changes
 - `--host-whitelist` has been deprecated since 2020 and this option is removed. Use the equivalent `--host-allowlist` instead. 
@@ -31,6 +39,7 @@
 - Add support for `movePrecompileToAddress` in `StateOverrides` (`eth_call`)[8115](https://github.com/hyperledger/besu/pull/8115)
 - Default target-gas-limit to 36M for holesky [#8125](https://github.com/hyperledger/besu/pull/8125)
 - Add EIP-7623 - Increase calldata cost [#8093](https://github.com/hyperledger/besu/pull/8093)
+- Add nonce to transaction call object [#8139](https://github.com/hyperledger/besu/pull/8139)
 
 ### Bug fixes
 - Fix serialization of state overrides when `movePrecompileToAddress` is present [#8204](https://github.com/hyperledger/besu/pull/8024)
