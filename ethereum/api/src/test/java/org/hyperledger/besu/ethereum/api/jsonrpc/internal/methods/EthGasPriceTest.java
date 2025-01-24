@@ -44,6 +44,7 @@ import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 import org.hyperledger.besu.ethereum.mainnet.feemarket.FeeMarket;
+import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
 import org.hyperledger.besu.evm.log.LogsBloomFilter;
 
 import java.util.HashMap;
@@ -72,6 +73,7 @@ public class EthGasPriceTest {
   private static final Wei DEFAULT_BASE_FEE = Wei.of(100_000);
 
   @Mock private ProtocolSchedule protocolSchedule;
+  @Mock private TransactionSimulator transactionSimulator; 
   @Mock private Blockchain blockchain;
   private EthGasPrice method;
   private MiningConfiguration miningConfiguration;
@@ -420,6 +422,7 @@ public class EthGasPriceTest {
             Optional.empty(),
             apiConfig,
             miningConfiguration),
-        apiConfig);
+        apiConfig
+        transactionSimulator);
   }
 }

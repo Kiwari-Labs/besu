@@ -1,5 +1,5 @@
 /*
- * Copyright Advanced Info Services PCL.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -28,7 +28,6 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +97,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
-   final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT).slice(12,20));
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT).slice(12, 20));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {

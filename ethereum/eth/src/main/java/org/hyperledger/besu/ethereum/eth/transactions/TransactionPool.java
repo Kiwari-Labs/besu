@@ -43,7 +43,9 @@ import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.transaction.TransactionInvalidReason;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.evm.account.Account;
+import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.fluent.SimpleAccount;
+import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.hyperledger.besu.util.Subscribers;
 
 import java.io.BufferedReader;
@@ -82,6 +84,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimaps;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -303,12 +306,22 @@ public class TransactionPool implements BlockAddedObserver {
     return transaction.getGasPrice().map(Optional::of).orElse(transaction.getMaxFeePerGas());
   }
 
+  private Wei getRemoteGasPrice() {
+    final WorldUpdater worldUpdater = protocolContext.getWorldStateArchive().getMutable().updater();
+    final MutableAccount gasPricePrecompile = worldUpdater.getOrCreate(Address.GASPRICE);
+    final UInt256 status = gasPricePrecompile.getStorageValue(UInt256.valueOf(2L));
+    if (status.equals(UInt256.ZERO)) {
+      return Wei.ZERO;
+    }
+    return Wei.of(gasPricePrecompile.getStorageValue(UInt256.valueOf(3L)));
+  }
+
   private boolean isMaxGasPriceBelowConfiguredMinGasPrice(final Transaction transaction) {
-    // @TODO if status of GASPRICE precompiled contract is `true` use the `gasPrice` from the
-    // contract.
-    return getMaxGasPrice(transaction)
-        .map(g -> g.lessThan(configuration.getMinGasPrice()))
-        .orElse(true);
+    Wei initialGasPrice = getRemoteGasPrice();
+    final Wei effectiveGasPrice =
+        initialGasPrice.equals(Wei.ZERO) ? configuration.getMinGasPrice() : initialGasPrice;
+
+    return getMaxGasPrice(transaction).map(g -> g.lessThan(effectiveGasPrice)).orElse(true);
   }
 
   private Stream<Transaction> sortedBySenderAndNonce(final Collection<Transaction> transactions) {

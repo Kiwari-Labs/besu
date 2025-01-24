@@ -91,19 +91,24 @@ public class Address extends DelegatingBytes {
   public static final Address BLS12_MAP_FP2_TO_G2 = Address.precompiled(0x11);
 
   /** The constant NATIVE_MINTER. */
-  public static final Address NATIVE_MINTER = Address.fromHexString("0x0000000000000000000000000000000000001001");
+  public static final Address NATIVE_MINTER =
+      Address.fromHexString("0x0000000000000000000000000000000000001001");
 
   /** The constant ADDRESS_REGISTRY. */
-  public static final Address ADDRESS_REGISTRY = Address.fromHexString("0x0000000000000000000000000000000000001002");
+  public static final Address ADDRESS_REGISTRY =
+      Address.fromHexString("0x0000000000000000000000000000000000001002");
 
   /** The constant GASPRICE. */
-  public static final Address GASPRICE = Address.fromHexString("0x0000000000000000000000000000000000001003");
+  public static final Address GASPRICE =
+      Address.fromHexString("0x0000000000000000000000000000000000001003");
 
   /** The constant REVENUE_RATIO */
-  public static final Address REVENUE_RATIO = Address.fromHexString("0x0000000000000000000000000000000000001004");
+  public static final Address REVENUE_RATIO =
+      Address.fromHexString("0x0000000000000000000000000000000000001004");
 
   /** The constant TREASURY_REGISTRY */
-  public static final Address TREASURY_REGISTRY = Address.fromHexString("0x0000000000000000000000000000000000001005");
+  public static final Address TREASURY_REGISTRY =
+      Address.fromHexString("0x0000000000000000000000000000000000001005");
 
   /** The constant ZERO. */
   public static final Address ZERO = Address.fromHexString("0x0");
