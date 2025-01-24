@@ -21,15 +21,18 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
 import java.util.Optional;
 import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledContract {
   private static final Logger LOG =
@@ -67,6 +70,10 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
   private static final Bytes TRUE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
+  public TreasuryRegistryPrecompiledContract(final GasCalculator gasCalculator) {
+    super("TreasuryRegistryPrecompiledContract", gasCalculator);
+  }
+
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
     final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
@@ -86,16 +93,16 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
   }
 
   private Bytes initializeOwner(
-      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (initialOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
-      contract.setStorageValue(INIT_SLOT, TRUE);
+      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
       return TRUE;
     }
   }
@@ -105,11 +112,12 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 newOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (newOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
-      contract.setStorageValue(OWNER,_SLOT newOwner);
+      contract.setStorageValue(OWNER_SLOT, newOwner);
+      return TRUE;
     }
   }
 
@@ -122,7 +130,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newTreasury = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 newTreasury = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (newTreasury.equals(UInt256.ZERO)) {
         return FALSE;
       }
@@ -158,7 +166,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
       final Address senderAddress = messageFrame.getSenderAddress();
-      final MutableAccount precompile = worldUpdater.getOrCreate(Address.TREASURY);
+      final MutableAccount precompile = worldUpdater.getOrCreate(Address.TREASURY_REGISTRY);
       if (function.equals(OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {

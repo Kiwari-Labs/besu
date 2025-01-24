@@ -28,6 +28,7 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +84,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   }
 
   /** Modifier */
-  private Bytes onlyOwner(final MutableAccount contract, Address senderAddress) {
+  private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
     final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
@@ -101,48 +102,48 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   }
 
   private Bytes initializeOwner(
-      final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (initialOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
-      contract.setStorageValue(INIT_SLOT, TRUE);
+      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
       return TRUE;
     }
   }
 
   private Bytes transferOwnership(
-      final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 newOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (newOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
-      contract.setStorageValue(OWNER,_SLOT newOwner);
+      contract.setStorageValue(OWNER_SLOT, newOwner);
       return TRUE;
     }
   }
 
-  private Bytes enable(final MutableAccount contract, Address senderAddress) {
+  private Bytes enable(final MutableAccount contract, final Address senderAddress) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(STATUS_SLOT, TRUE);
+      contract.setStorageValue(STATUS_SLOT, UInt256.ONE);
       return TRUE;
     }
   }
 
-  private Bytes disable(final MutableAccount contract, Address senderAddress) {
+  private Bytes disable(final MutableAccount contract, final Address senderAddress) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(STATUS_SLOT, FALSE);
+      contract.setStorageValue(STATUS_SLOT, UInt256.ZERO);
       return TRUE;
     }
   }
@@ -151,8 +152,12 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
     return contract.getStorageValue(STATUS_SLOT);
   }
 
+  private Bytes gasPrice(final MutableAccount contract) {
+    return contract.getStorageValue(GASPRICE_SLOT);
+  }
+
   private Bytes setGasPrice(
-      final MutableAccount contract, Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {

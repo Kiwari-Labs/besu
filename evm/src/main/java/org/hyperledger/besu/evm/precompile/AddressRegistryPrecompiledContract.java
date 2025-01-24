@@ -28,6 +28,7 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +78,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
   }
 
   /** Modifier */
-  private Bytes onlyOwner(final MutableAccount contract, Address senderAddress) {
+  private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
     final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
@@ -88,7 +89,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
 
   // for calculate storage slot of mapping(address => bool)
   private UInt256 storageSlot(final Address address) {
-    final Bytes slotKey = Bytes.concatenate(REGISTRY.toBytes(), address.toBytes());
+    final Bytes slotKey = Bytes.concatenate(REGISTRY_SLOT, address);
     return UInt256.fromBytes(Bytes32.leftPad(Hash.keccak256(slotKey)));
   }
 
@@ -101,16 +102,16 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
   }
 
   private Bytes initializeOwner(
-      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (initialOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
-      contract.setStorageValue(INIT_SLOT, TRUE);
+      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
       return TRUE;
     }
   }
@@ -120,20 +121,21 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 newOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (newOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
-      contract.setStorageValue(OWNER,_SLOT newOwner);
+      contract.setStorageValue(OWNER_SLOT, newOwner);
+      return TRUE;
     }
   }
 
   private Bytes contains(final MutableAccount contract, final Bytes calldata) {
     final Address address = Address.wrap(calldata.slice(0, 20));
     final UInt256 slot = storageSlot(address);
-    if (contract.getStorageValue(slot)).equals(FALSE) {
+    if (contract.getStorageValue(slot).equals(FALSE)) {
       return FALSE;
-    } else
+    } else {
       return TRUE;
     }
   }
@@ -149,7 +151,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     } else {
       final Address address = Address.wrap(calldata.slice(0, 20));
       final UInt256 slot = storageSlot(address);
-      contract.setStorageValue(slot, TRUE);
+      contract.setStorageValue(slot, UInt256.ONE);
       return TRUE;
     }
   }
@@ -161,7 +163,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     } else {
       final Address address = Address.wrap(calldata.slice(0, 20));
       final UInt256 slot = storageSlot(address);
-      contract.setStorageValue(slot, FALSE);
+      contract.setStorageValue(slot, UInt256.ZERO);
       return TRUE;
     }
   }

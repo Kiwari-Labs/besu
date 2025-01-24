@@ -28,6 +28,7 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,13 +74,15 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
 
   private static final UInt256 OWNER_SLOT = UInt256.ONE;
 
-  private static final UInt256 CONTRACT_RATIO_SLOT = UInt256.valueOf(2L);
+  private static final UInt256 STATUS_SLOT = UInt256.valueOf(2L);
 
-  private static final UInt256 COINBASE_RATIO_SLOT = UInt256.valueOf(3L);
+  private static final UInt256 CONTRACT_RATIO_SLOT = UInt256.valueOf(3L);
 
-  private static final UInt256 PROVIDER_RATIO_SLOT = UInt256.valueOf(4L);
+  private static final UInt256 COINBASE_RATIO_SLOT = UInt256.valueOf(4L);
 
-  private static final UInt256 TREASURY_RATIO_SLOT = UInt256.valueOf(5L);
+  private static final UInt256 PROVIDER_RATIO_SLOT = UInt256.valueOf(5L);
+
+  private static final UInt256 TREASURY_RATIO_SLOT = UInt256.valueOf(6L);
 
   /** Returns */
   private static final Bytes FALSE =
@@ -94,7 +97,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
 
   /** Modifier */
   private Bytes onlyOwner(final MutableAccount contract, final Address senderAddress) {
-    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER));
+    final Address storedOwner = Address.wrap(contract.getStorageValue(OWNER_SLOT));
     if (storedOwner.equals(senderAddress)) {
       return TRUE;
     } else {
@@ -111,16 +114,16 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   }
 
   private Bytes initializeOwner(
-      final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
+      final MutableAccount contract, final Bytes calldata) {
     if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
-      final UInt256 initialOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 initialOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (initialOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
-      contract.setStorageValue(INIT_SLOT, TRUE);
+      contract.setStorageValue(INIT_SLOT, UInt256.ONE);
       return TRUE;
     }
   }
@@ -130,28 +133,29 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      final UInt256 newOwner = UInt256.fromBytes(Bytes.wrap(calldata.slice(0, 20)).padLeft(32));
+      final UInt256 newOwner = UInt256.fromBytes(Bytes32.leftPad(calldata.slice(0, 20)));
       if (newOwner.equals(UInt256.ZERO)) {
         return FALSE;
       }
-      contract.setStorageValue(OWNER,_SLOT newOwner);
-    }
-  }
-
-  private Bytes enable(final MutableAccount contract, Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
-      return FALSE;
-    } else {
-      contract.setStorageValue(STATUS_SLOT, TRUE);
+      contract.setStorageValue(OWNER_SLOT, newOwner);
       return TRUE;
     }
   }
 
-  private Bytes disable(final MutableAccount contract, Address senderAddress) {
+  private Bytes enable(final MutableAccount contract, final Address senderAddress) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
-      contract.setStorageValue(STATUS_SLOT, FALSE);
+      contract.setStorageValue(STATUS_SLOT, UInt256.ONE);
+      return TRUE;
+    }
+  }
+
+  private Bytes disable(final MutableAccount contract, final Address senderAddress) {
+    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+      return FALSE;
+    } else {
+      contract.setStorageValue(STATUS_SLOT, UInt256.ZERO);
       return TRUE;
     }
   }
@@ -176,7 +180,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     return contract.getStorageValue(TREASURY_RATIO_SLOT);
   }
 
-  private Bytes treasuryRatio(final MutableAccount contract, final Bytes calldata) {
+  private Bytes setRevenueRatio(final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
     if (onlyOwner(contract, senderAddress).equals(FALSE)) {
       return FALSE;
     } else {
@@ -205,8 +209,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
         || function.equals(CONTRACT_RATIO_SIGNATURE) 
         || function.equals(COINBASE_RATIO_SIGNATURE) 
         || function.equals(PROVIDER_RATIO_SIGNATURE) 
-        || function.equals(TREASURY_RATIO_SIGNATURE) {
-        ) {
+        || function.equals(TREASURY_RATIO_SIGNATURE)) {
       // gas cost for read operation.
       return 1000;
     } else {
@@ -235,10 +238,16 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(
-            initializeOwner(precompile, senderAddress, calldata));
+            initializeOwner(precompile, calldata));
       } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
+      } else if (function.equals(STATUS_SIGNATURE)) {
+        return PrecompileContractResult.success(status(precompile));
+      } else if (function.equals(ENABLE_SIGNATURE)) {
+        return PrecompileContractResult.success(enable(precompile, senderAddress));
+      } else if (function.equals(DISABLE_SIGNATURE)) {
+        return PrecompileContractResult.success(disable(precompile, senderAddress));
       } else if (function.equals(CONTRACT_RATIO_SIGNATURE)) {
         return PrecompileContractResult.success(contractRatio(precompile));
       } else if (function.equals(COINBASE_RATIO_SIGNATURE)) {
