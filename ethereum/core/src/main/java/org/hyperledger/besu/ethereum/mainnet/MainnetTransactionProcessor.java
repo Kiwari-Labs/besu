@@ -66,6 +66,9 @@ public class MainnetTransactionProcessor {
 
   private static final Logger LOG = LoggerFactory.getLogger(MainnetTransactionProcessor.class);
 
+  private static final Bytes FALSE =
+      Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
+
   private static final Set<Address> EMPTY_ADDRESS_SET = Set.of();
 
   protected final GasCalculator gasCalculator;
