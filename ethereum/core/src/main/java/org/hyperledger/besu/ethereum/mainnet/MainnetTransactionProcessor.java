@@ -58,6 +58,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
+import org.apache.tuweni.units.bigints.UInt256;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -528,13 +529,47 @@ public class MainnetTransactionProcessor {
 
       operationTracer.traceBeforeRewardTransaction(worldUpdater, transaction, coinbaseWeiDelta);
 
-      // @TODO if the RevenueRation STATUS is TRUE distribute the transaction fee otherwise use the default of hyperledger/besu.
-      // case transaction is contract creation or  eth transfer distribute to coinbase, provider, and treasury.
-      // case transaction is contract call distribute to contract, coinbase, provider, and treasury.
+      final Bytes revenueRatioStatus = getStorageAtFromRevenueRatio(worldUpdater, 2L);
 
       if (!coinbaseWeiDelta.isZero() || !clearEmptyAccounts) {
         final var coinbase = evmWorldUpdater.getOrCreate(miningBeneficiary);
-        coinbase.incrementBalance(coinbaseWeiDelta);
+        if (revenueRatioStatus.equals(FALSE)) {
+          coinbase.incrementBalance(coinbaseWeiDelta);
+        } else {
+          final Address providerAddress = getProviderOf(senderAddress);
+          final var contract = evmWorldUpdater.getOrCreate(to);
+          final var provider = evmWorldUpdater.getOrCreate(getProviderOf(senderAddress));
+          final var treasury = evmWorldUpdater.getOrCreate(getTreasuryAddress(worldUpdater));
+          if (initialFrame.getCode().isValid() && !transaction.isContractCreation()) {
+            final Wei feeForContract =
+                coinbaseWeiDelta
+                    .multiply(getStorageAtFromRevenueRatio(worldUpdater, 3L))
+                    .divide(100L);
+            final Wei feeForProvider =
+                coinbaseWeiDelta
+                    .multiply(getStorageAtFromRevenueRatio(worldUpdater, 4L))
+                    .divide(100L);
+            final Wei feeForTreasury =
+                coinbaseWeiDelta
+                    .multiply(getStorageAtFromRevenueRatio(worldUpdater, 5L))
+                    .divide(100L);
+            final Wei feeForCoinbase =
+                coinbaseWeiDelta
+                    .subtract(feeForContract)
+                    .subtract(feeForTreasury)
+                    .subtract(providerAddress.equals(Address.ZERO) ? Wei.ZERO : feeForProvider);
+            contract.incrementBalance(feeForContract);
+            treasury.incrementBalance(feeForTreasury);
+            if (!providerAddress.equals(Address.ZERO)) {
+              provider.incrementBalance(feeForProvider);
+            }
+            coinbase.incrementBalance(feeForCoinbase);
+          } else {
+            final Wei fee = coinbaseWeiDelta.divide(2L);
+            coinbase.incrementBalance(fee);
+            treasury.incrementBalance(fee);
+          }
+        }
       }
 
       operationTracer.traceEndTransaction(
@@ -639,6 +674,20 @@ public class MainnetTransactionProcessor {
     }
 
     return builder.toString();
+  }
+
+  private Address getProviderOf(final WorldUpdater worldUpdater, final Address address) {
+    return Address.ZERO;
+  }
+
+  private Address getTreasuryAddress(final WorldUpdater worldUpdater) {
+    final MutableAccount treasuryRegistry = worldUpdater.getOrCreate(ADDRESS.TREASURY_REGISTRY);
+    return Address.wrap(treasuryRegistry.getStorageValue(UInt256.valueOf(2L)).slice(12, 20));
+  }
+
+  private Bytes getStorageAtFromRevenueRatio(final WorldUpdater worldUpdater, long slot) {
+    final MutableAccount revenueRatio = worldUpdater.getOrCreate(ADDRESS.RevenueRatio);
+    return revenueRatio.getStorageValue(UInt256.valueOf(slot));
   }
 
   public static Builder builder() {
