@@ -527,6 +527,11 @@ public class MainnetTransactionProcessor {
           coinbaseCalculator.price(usedGas, transactionGasPrice, blockHeader.getBaseFee());
 
       operationTracer.traceBeforeRewardTransaction(worldUpdater, transaction, coinbaseWeiDelta);
+
+      // @TODO if the RevenueRation STATUS is TRUE distribute the transaction fee otherwise use the default of hyperledger/besu.
+      // case transaction is contract creation or  eth transfer distribute to coinbase, provider, and treasury.
+      // case transaction is contract call distribute to contract, coinbase, provider, and treasury.
+
       if (!coinbaseWeiDelta.isZero() || !clearEmptyAccounts) {
         final var coinbase = evmWorldUpdater.getOrCreate(miningBeneficiary);
         coinbase.incrementBalance(coinbaseWeiDelta);

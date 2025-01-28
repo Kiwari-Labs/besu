@@ -225,7 +225,6 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
   @Override
   public PrecompileContractResult computePrecompile(
       final Bytes input, @Nonnull final MessageFrame messageFrame) {
-    // @TODO try catch style.
     if (input.isEmpty()) {
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
@@ -262,8 +261,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
         return PrecompileContractResult.success(
             setRevenueRatio(precompile, senderAddress, calldata));
       } else {
-        // @TODO logging the invalid function signature.
-        LOG.info("Failed interface not found");
+        LOG.info("Failed function {} not found", function);
         return PrecompileContractResult.halt(
             null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
       }

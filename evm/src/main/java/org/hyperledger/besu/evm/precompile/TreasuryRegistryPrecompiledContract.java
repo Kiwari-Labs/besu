@@ -154,7 +154,6 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
   @Override
   public PrecompileContractResult computePrecompile(
       final Bytes input, @Nonnull final MessageFrame messageFrame) {
-    // @TODO try catch style.
     if (input.isEmpty()) {
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
@@ -181,8 +180,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
       } else if (function.equals(SET_TREASURY_SIGNATURE)) {
         return PrecompileContractResult.success(setTreasury(precompile, senderAddress, calldata));
       } else {
-        // @TODO logging the invalid function signature.
-        LOG.info("Failed interface not found");
+        LOG.info("Failed function {} not found", function);
         return PrecompileContractResult.halt(
             null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
       }

@@ -184,7 +184,6 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   @Override
   public PrecompileContractResult computePrecompile(
       final Bytes input, @Nonnull final MessageFrame messageFrame) {
-    // @TODO try catch style.
     if (input.isEmpty()) {
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
@@ -217,8 +216,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
       } else if (function.equals(SET_GASPRICE_SIGNATURE)) {
         return PrecompileContractResult.success(setGasPrice(precompile, senderAddress, calldata));
       } else {
-        // @TODO logging the invalid function signature.
-        LOG.info("Failed interface not found");
+        LOG.info("Failed function {} not found", function);
         return PrecompileContractResult.halt(
             null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
       }
