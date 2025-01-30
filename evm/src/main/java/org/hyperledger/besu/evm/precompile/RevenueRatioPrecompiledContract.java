@@ -188,14 +188,12 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
       final UInt256 newCoinbaseRatio = UInt256.fromBytes(calldata.slice(32, 32));
       final UInt256 newProviderRatio = UInt256.fromBytes(calldata.slice(64, 32));
       final UInt256 newTreasuryRatio = UInt256.fromBytes(calldata.slice(96, 32));
-      LOG.info("newContractRatio {}", newContractRatio);
-      LOG.info("newCoinbaseRatio {}", newCoinbaseRatio);
-      LOG.info("newProviderRatio {}", newProviderRatio);
-      LOG.info("newTreasuryRatio {}", newTreasuryRatio);
-      final UInt256 totalRatio = newContractRatio
-        .add(newCoinbaseRatio)
-        .add(newProviderRatio)
-        .add(newTreasuryRatio);
+      LOG.debug("newContractRatio {}", newContractRatio);
+      LOG.debug("newCoinbaseRatio {}", newCoinbaseRatio);
+      LOG.debug("newProviderRatio {}", newProviderRatio);
+      LOG.debug("newTreasuryRatio {}", newTreasuryRatio);
+      final UInt256 totalRatio =
+          newContractRatio.add(newCoinbaseRatio).add(newProviderRatio).add(newTreasuryRatio);
       if (!totalRatio.equals(UInt256.valueOf(100L))) {
         return FALSE; // Ratios must sum exactly to 100
       }
@@ -235,8 +233,6 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
     } else {
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
-      LOG.debug("function selector {}", function);
-      LOG.debug("calldata {}", calldata);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
       final Address senderAddress = messageFrame.getSenderAddress();
       final MutableAccount precompile = worldUpdater.getOrCreate(Address.REVENUE_RATIO);

@@ -168,7 +168,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
         return PrecompileContractResult.success(
             mint(precompile, worldUpdater, senderAddress, calldata));
       } else {
-        LOG.info("Failed function {} not found", function);
+        LOG.debug("Failed function {} not found", function);
         return PrecompileContractResult.halt(
             null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
       }

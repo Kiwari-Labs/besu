@@ -30,6 +30,7 @@ import org.hyperledger.besu.ethereum.chain.BlockAddedEvent;
 import org.hyperledger.besu.ethereum.chain.BlockAddedObserver;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.eth.manager.EthContext;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeer;
@@ -307,23 +308,24 @@ public class TransactionPool implements BlockAddedObserver {
   }
 
   private Wei getRemoteGasPrice() {
-    // @TODO something wrong it's return empty
-    final WorldUpdater worldUpdater = protocolContext.getWorldStateArchive().getMutable().updater();
-    final MutableAccount gasPricePrecompile = worldUpdater.getOrCreate(Address.GASPRICE);
-    final UInt256 status = gasPricePrecompile.getStorageValue(UInt256.valueOf(2L));
-    LOG.info("getRemoteGasPrice status {}", status);
-    if (status.equals(UInt256.ZERO)) {
-      return Wei.ZERO;
-    }
-    return Wei.of(gasPricePrecompile.getStorageValue(UInt256.valueOf(3L)));
+    final Optional<BlockHeader> blockHeader = getChainHeadBlockHeader();
+    final Optional<MutableWorldState> worldState =
+        protocolContext.getWorldStateArchive().getMutable(blockHeader.get(), false);
+    final WorldUpdater worldUpdater = worldState.get().updater();
+    final MutableAccount gasPricePrecompiled = worldUpdater.getOrCreate(Address.GASPRICE);
+    final UInt256 status = gasPricePrecompiled.getStorageValue(UInt256.valueOf(2L));
+    final UInt256 gasPrice = gasPricePrecompiled.getStorageValue(UInt256.valueOf(3L));
+    LOG.debuh("gasPrice status {}", status);
+    LOG.debug("gasPrice price {}", gasPrice);
+    return status.equals(UInt256) ? Wei.ZERO : Wei.of(gasPrice);
   }
 
   private boolean isMaxGasPriceBelowConfiguredMinGasPrice(final Transaction transaction) {
     Wei initialGasPrice = getRemoteGasPrice();
-    LOG.info("isMaxGasPriceBelowConfiguredMinGasPrice {}", initialGasPrice);
-
     if (initialGasPrice.equals(Wei.ZERO)) {
-      return getMaxGasPrice(transaction).map(g -> g.lessThan(configuration.getMinGasPrice())).orElse(true);
+      return getMaxGasPrice(transaction)
+          .map(g -> g.lessThan(configuration.getMinGasPrice()))
+          .orElse(true);
     }
     return getMaxGasPrice(transaction).map(g -> g.lessThan(initialGasPrice)).orElse(true);
   }

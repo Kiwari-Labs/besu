@@ -160,9 +160,6 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
     } else {
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
-      LOG.info("function selector {}", function);
-      LOG.info("calldata {}", calldata);
-      LOG.info("calldata {}", calldata.size());
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
       final Address senderAddress = messageFrame.getSenderAddress();
       final MutableAccount precompile = worldUpdater.getOrCreate(Address.TREASURY_REGISTRY);
@@ -180,7 +177,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
       } else if (function.equals(SET_TREASURY_SIGNATURE)) {
         return PrecompileContractResult.success(setTreasury(precompile, senderAddress, calldata));
       } else {
-        LOG.info("Failed function {} not found", function);
+        LOG.debug("Failed function {} not found", function);
         return PrecompileContractResult.halt(
             null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
       }

@@ -190,9 +190,6 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
     } else {
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
-      LOG.info("function selector {}", function);
-      LOG.info("calldata {}", calldata);
-      LOG.info("calldata {}", calldata.size());
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
       final Address senderAddress = messageFrame.getSenderAddress();
       final MutableAccount precompile = worldUpdater.getOrCreate(Address.GASPRICE);
@@ -216,7 +213,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
       } else if (function.equals(SET_GASPRICE_SIGNATURE)) {
         return PrecompileContractResult.success(setGasPrice(precompile, senderAddress, calldata));
       } else {
-        LOG.info("Failed function {} not found", function);
+        LOG.debug("Failed function {} not found", function);
         return PrecompileContractResult.halt(
             null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
       }
