@@ -101,7 +101,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   }
 
   private Bytes initializeOwner(final MutableAccount contract, final Bytes calldata) {
-    if (initialized(contract).equals(FALSE)) {
+    if (initialized(contract).equals(TRUE)) {
       return FALSE;
     } else {
       final UInt256 initialOwner = UInt256.fromBytes(calldata);
