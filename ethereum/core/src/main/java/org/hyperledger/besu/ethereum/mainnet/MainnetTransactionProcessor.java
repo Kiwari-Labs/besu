@@ -21,6 +21,7 @@ import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_TRANSA
 import static org.hyperledger.besu.evm.internal.Words.clampedAdd;
 
 import org.hyperledger.besu.collections.trie.BytesTrieSet;
+import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.AccessListEntry;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
@@ -68,6 +69,8 @@ public class MainnetTransactionProcessor {
 
   private static final Bytes FALSE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
+
+  private static final UInt256 PRECOMPILE_STORAGE_SLOT = UInt256.valueOf(2L);
 
   private static final Set<Address> EMPTY_ADDRESS_SET = Set.of();
 
@@ -539,22 +542,22 @@ public class MainnetTransactionProcessor {
         if (revenueRatioStatus.equals(FALSE)) {
           coinbase.incrementBalance(coinbaseWeiDelta);
         } else {
-          final Address providerAddress = getProviderOf(senderAddress);
-          final var contract = evmWorldUpdater.getOrCreate(to);
-          final var provider = evmWorldUpdater.getOrCreate(getProviderOf(senderAddress));
+          final Address providerAddress = getProviderOf(worldUpdater, senderAddress);
+          final var contract = evmWorldUpdater.getOrCreate(transaction.getTo().get());
+          final var provider = evmWorldUpdater.getOrCreate(providerAddress);
           final var treasury = evmWorldUpdater.getOrCreate(getTreasuryAddress(worldUpdater));
           if (initialFrame.getCode().isValid() && !transaction.isContractCreation()) {
             final Wei feeForContract =
                 coinbaseWeiDelta
-                    .multiply(getStorageAtFromRevenueRatio(worldUpdater, 3L))
+                    .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 3L)))
                     .divide(100L);
             final Wei feeForProvider =
                 coinbaseWeiDelta
-                    .multiply(getStorageAtFromRevenueRatio(worldUpdater, 4L))
+                    .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 4L)))
                     .divide(100L);
             final Wei feeForTreasury =
                 coinbaseWeiDelta
-                    .multiply(getStorageAtFromRevenueRatio(worldUpdater, 5L))
+                    .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 5L)))
                     .divide(100L);
             final Wei feeForCoinbase =
                 coinbaseWeiDelta
@@ -680,16 +683,19 @@ public class MainnetTransactionProcessor {
   }
 
   private Address getProviderOf(final WorldUpdater worldUpdater, final Address address) {
-    return Address.ZERO;
+    final MutableAccount addressRegistry = worldUpdater.getOrCreate(Address.ADDRESS_REGISTRY);
+    final Bytes hash = Bytes.concatenate(PRECOMPILE_STORAGE_SLOT, address);
+    final UInt256 slot = UInt256.fromBytes(Bytes32.leftPad(Hash.keccak256(hash)));
+    return Address.wrap(addressRegistry.getStorageValue(slot).slice(12, 20));
   }
 
   private Address getTreasuryAddress(final WorldUpdater worldUpdater) {
-    final MutableAccount treasuryRegistry = worldUpdater.getOrCreate(ADDRESS.TREASURY_REGISTRY);
-    return Address.wrap(treasuryRegistry.getStorageValue(UInt256.valueOf(2L)).slice(12, 20));
+    final MutableAccount treasuryRegistry = worldUpdater.getOrCreate(Address.TREASURY_REGISTRY);
+    return Address.wrap(treasuryRegistry.getStorageValue(PRECOMPILE_STORAGE_SLOT).slice(12, 20));
   }
 
-  private Bytes getStorageAtFromRevenueRatio(final WorldUpdater worldUpdater, long slot) {
-    final MutableAccount revenueRatio = worldUpdater.getOrCreate(ADDRESS.RevenueRatio);
+  private Bytes getStorageAtFromRevenueRatio(final WorldUpdater worldUpdater, final long slot) {
+    final MutableAccount revenueRatio = worldUpdater.getOrCreate(Address.REVENUE_RATIO);
     return revenueRatio.getStorageValue(UInt256.valueOf(slot));
   }
 

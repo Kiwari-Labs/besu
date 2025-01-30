@@ -153,7 +153,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
       return FALSE;
     } else {
       final UInt256 slot = storageSlot(Address.wrap(calldata.slice(12, 20)));
-      contract.setStorageValue(slot, calldata.slice(32));
+      contract.setStorageValue(slot, UInt256.fromBytes(calldata.slice(32)));
       return TRUE;
     }
   }
