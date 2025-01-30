@@ -307,9 +307,11 @@ public class TransactionPool implements BlockAddedObserver {
   }
 
   private Wei getRemoteGasPrice() {
+    // @TODO something wrong it's return empty
     final WorldUpdater worldUpdater = protocolContext.getWorldStateArchive().getMutable().updater();
     final MutableAccount gasPricePrecompile = worldUpdater.getOrCreate(Address.GASPRICE);
     final UInt256 status = gasPricePrecompile.getStorageValue(UInt256.valueOf(2L));
+    LOG.info("getRemoteGasPrice status {}", status);
     if (status.equals(UInt256.ZERO)) {
       return Wei.ZERO;
     }
@@ -318,10 +320,12 @@ public class TransactionPool implements BlockAddedObserver {
 
   private boolean isMaxGasPriceBelowConfiguredMinGasPrice(final Transaction transaction) {
     Wei initialGasPrice = getRemoteGasPrice();
-    final Wei effectiveGasPrice =
-        initialGasPrice.equals(Wei.ZERO) ? configuration.getMinGasPrice() : initialGasPrice;
+    LOG.info("isMaxGasPriceBelowConfiguredMinGasPrice {}", initialGasPrice);
 
-    return getMaxGasPrice(transaction).map(g -> g.lessThan(effectiveGasPrice)).orElse(true);
+    if (initialGasPrice.equals(Wei.ZERO)) {
+      return getMaxGasPrice(transaction).map(g -> g.lessThan(configuration.getMinGasPrice())).orElse(true);
+    }
+    return getMaxGasPrice(transaction).map(g -> g.lessThan(initialGasPrice)).orElse(true);
   }
 
   private Stream<Transaction> sortedBySenderAndNonce(final Collection<Transaction> transactions) {
