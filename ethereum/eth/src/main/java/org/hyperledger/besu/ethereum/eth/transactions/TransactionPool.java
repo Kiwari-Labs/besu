@@ -315,9 +315,9 @@ public class TransactionPool implements BlockAddedObserver {
     final MutableAccount gasPricePrecompiled = worldUpdater.getOrCreate(Address.GASPRICE);
     final UInt256 status = gasPricePrecompiled.getStorageValue(UInt256.valueOf(2L));
     final UInt256 gasPrice = gasPricePrecompiled.getStorageValue(UInt256.valueOf(3L));
-    LOG.debuh("gasPrice status {}", status);
+    LOG.debug("gasPrice status {}", status);
     LOG.debug("gasPrice price {}", gasPrice);
-    return status.equals(UInt256) ? Wei.ZERO : Wei.of(gasPrice);
+    return status.equals(UInt256.ZERO) ? Wei.ZERO : Wei.of(gasPrice);
   }
 
   private boolean isMaxGasPriceBelowConfiguredMinGasPrice(final Transaction transaction) {
