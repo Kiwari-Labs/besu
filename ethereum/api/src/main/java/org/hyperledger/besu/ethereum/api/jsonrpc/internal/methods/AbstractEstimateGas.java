@@ -147,7 +147,8 @@ public abstract class AbstractEstimateGas extends AbstractBlockParameterMethod {
         callParams.getPayload(),
         callParams.getAccessList(),
         callParams.getMaxFeePerBlobGas(),
-        callParams.getBlobVersionedHashes());
+        callParams.getBlobVersionedHashes(),
+        callParams.getNonce());
   }
 
   /**
@@ -209,8 +210,8 @@ public abstract class AbstractEstimateGas extends AbstractBlockParameterMethod {
     final boolean isAllowExceedingBalance = !callParams.isMaybeStrict().orElse(Boolean.FALSE);
 
     return isAllowExceedingBalance
-        ? TransactionValidationParams.transactionSimulatorAllowExceedingBalance()
-        : TransactionValidationParams.transactionSimulator();
+        ? TransactionValidationParams.transactionSimulatorAllowExceedingBalanceAndFutureNonce()
+        : TransactionValidationParams.transactionSimulatorAllowFutureNonce();
   }
 
   @VisibleForTesting

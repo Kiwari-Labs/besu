@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.datatypes;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.hyperledger.besu.datatypes.parameters.UnsignedLongParameter;
 
 import java.util.Map;
@@ -35,17 +37,23 @@ public class StateOverride {
   private final Optional<Wei> balance;
   private final Optional<Long> nonce;
   private final Optional<String> code;
+  private final Optional<Map<String, String>> state;
   private final Optional<Map<String, String>> stateDiff;
+  private final Optional<Address> movePrecompileToAddress;
 
   private StateOverride(
       final Optional<Wei> balance,
       final Optional<Long> nonce,
       final Optional<String> code,
-      final Optional<Map<String, String>> stateDiff) {
+      final Optional<Map<String, String>> state,
+      final Optional<Map<String, String>> stateDiff,
+      final Optional<Address> movePrecompileToAddress) {
     this.balance = balance;
     this.nonce = nonce;
     this.code = code;
+    this.state = state;
     this.stateDiff = stateDiff;
+    this.movePrecompileToAddress = movePrecompileToAddress;
   }
 
   /**
@@ -80,8 +88,26 @@ public class StateOverride {
    *
    * @return the state override map if present
    */
+  public Optional<Map<String, String>> getState() {
+    return state;
+  }
+
+  /**
+   * Gets the state diff override map
+   *
+   * @return the state diff override map if present
+   */
   public Optional<Map<String, String>> getStateDiff() {
     return stateDiff;
+  }
+
+  /**
+   * Gets the new address for the pre-compiled contract
+   *
+   * @return the new address for the pre-compiled contract if present
+   */
+  public Optional<Address> getMovePrecompileToAddress() {
+    return movePrecompileToAddress;
   }
 
   /** Builder class for Account overrides */
@@ -90,7 +116,9 @@ public class StateOverride {
     private Optional<Wei> balance = Optional.empty();
     private Optional<Long> nonce = Optional.empty();
     private Optional<String> code = Optional.empty();
+    private Optional<Map<String, String>> state = Optional.empty();
     private Optional<Map<String, String>> stateDiff = Optional.empty();
+    private Optional<Address> movePrecompileToAddress = Optional.empty();
 
     /** Default constructor. */
     public Builder() {}
@@ -129,6 +157,17 @@ public class StateOverride {
     }
 
     /**
+     * Sets the state override
+     *
+     * @param state the map of state overrides
+     * @return the builder
+     */
+    public Builder withState(final Map<String, String> state) {
+      this.state = Optional.ofNullable(state);
+      return this;
+    }
+
+    /**
      * Sets the state diff override
      *
      * @param stateDiff the map of state overrides
@@ -140,12 +179,24 @@ public class StateOverride {
     }
 
     /**
+     * Sets the new address for the pre-compiled contract
+     *
+     * @param newPrecompileAddress the new address for the pre-compile contract
+     * @return the builder
+     */
+    public Builder withMovePrecompileToAddress(final Address newPrecompileAddress) {
+      this.movePrecompileToAddress = Optional.ofNullable(newPrecompileAddress);
+      return this;
+    }
+
+    /**
      * build the account override from the builder
      *
      * @return account override
      */
     public StateOverride build() {
-      return new StateOverride(balance, nonce, code, stateDiff);
+      checkState(state.isEmpty() || stateDiff.isEmpty(), "Cannot set both state and stateDiff");
+      return new StateOverride(balance, nonce, code, state, stateDiff, movePrecompileToAddress);
     }
   }
 
@@ -176,12 +227,13 @@ public class StateOverride {
     return balance.equals(stateOverride.balance)
         && nonce.equals(stateOverride.nonce)
         && code.equals(stateOverride.code)
+        && state.equals(stateOverride.state)
         && stateDiff.equals(stateOverride.stateDiff);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(balance, nonce, code, stateDiff);
+    return Objects.hash(balance, nonce, code, state, stateDiff);
   }
 
   @Override
@@ -193,8 +245,12 @@ public class StateOverride {
         + nonce
         + ", code="
         + code
+        + ", state="
+        + state
         + ", stateDiff="
         + stateDiff
+        + ", movePrecompileToAddress="
+        + movePrecompileToAddress
         + '}';
   }
 }
