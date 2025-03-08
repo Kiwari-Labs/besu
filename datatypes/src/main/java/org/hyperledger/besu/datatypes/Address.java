@@ -110,6 +110,10 @@ public class Address extends DelegatingBytes {
   public static final Address TREASURY_REGISTRY =
       Address.fromHexString("0x0000000000000000000000000000000000001005");
 
+  /** The constant GASFEE_GRANT */
+  public static final Address GASFEE_GRANT =
+      Address.fromHexString("0x0000000000000000000000000000000000001006");
+
   /** The constant ZERO. */
   public static final Address ZERO = Address.fromHexString("0x0");
 

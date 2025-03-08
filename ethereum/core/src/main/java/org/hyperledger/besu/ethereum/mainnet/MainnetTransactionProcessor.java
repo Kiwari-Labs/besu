@@ -291,6 +291,12 @@ public class MainnetTransactionProcessor {
         return TransactionProcessingResult.invalid(validationResult);
       }
 
+      // @TODO corp-ais/blockchain-besu
+      // Validate the transaction is sender have any gas fee granter
+      // check granter has sufficient balance for transact the transaction.
+      // update the `latestTransactionAt` of grantee.
+      // update the `value` of grantee.
+
       final Address senderAddress = transaction.getSender();
       final MutableAccount sender = evmWorldUpdater.getOrCreateSenderAccount(senderAddress);
 
