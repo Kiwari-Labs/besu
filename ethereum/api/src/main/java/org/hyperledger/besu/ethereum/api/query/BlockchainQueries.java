@@ -1033,8 +1033,6 @@ public class BlockchainQueries {
   }
 
   public Wei gasPrice() {
-    // @TODO if status of GASPRICE precompiled contract is `true` use the `gasPrice` from the
-    // contract.
     final Block chainHeadBlock = blockchain.getChainHeadBlock();
     final var chainHeadHeader = chainHeadBlock.getHeader();
     final long blockHeight = chainHeadHeader.getNumber();
