@@ -294,6 +294,30 @@ public class MainnetTransactionValidator implements TransactionValidator {
       if (sender.getCodeHash() != null) codeHash = sender.getCodeHash();
     }
 
+    // @TODO corp-ais/blockchain-besu
+    // validation rule of gas fee grant
+    // 1. sender has granter.    
+    // 2. check the transaction is 'value' is not 'transfer' or 'contract_creation'.
+    //    if ((transaction.getValue()).compareTo(Wei.ZERO) > 0);
+    //        return ValidationResult.invalid(
+    //            TransactionInvalidReason.GASFEE_GRANT_TRANSFER_VALUE_NOT_SUPPORT,
+    //            "Gas fee grant does not support transactions that transfer value.");
+    //    if (transaction.isContractCreation()) {
+    //       return ValidationResult.invalid(
+    //           TransactionInvalidReason.GASFEE_GRANT_CONTRACT_CREATION_NOT_SUPPORT,
+    //           "Gas fee grant does not support contract creation transactions.");
+    //    }
+    // 3. grant not expired.
+    // 4. replace senderBalance with granter balance.
+    // 5. check balance.
+    //    upfrontCost.compareTo(granterBalance) > 0 && 
+    //    upfrontCost.compareTo(feeGrantPerTransaction) > 0
+    //    return ValidationResult.invalid(TransactionInvalidReason.UPFRONT_COST_EXCEEDS_GASFEE_GRANT)
+    // 6. check grant type if `PERIODIC_ALLOWANCE` type
+    //    Wei allowanceRemaining = feeGrantPerPeriod - allowanceUsed
+    //    upfrontCost.compareTo(allowanceRemaining) > 0
+    //    return ValidationResult.invalid(TransactionInvalidReason.UPFRONT_COST_EXCEEDS_REMAINING_GASFEE_GRANT)
+    
     final Wei upfrontCost =
         transaction.getUpfrontCost(gasCalculator.blobGasCost(transaction.getBlobCount()));
     if (upfrontCost.compareTo(senderBalance) > 0) {

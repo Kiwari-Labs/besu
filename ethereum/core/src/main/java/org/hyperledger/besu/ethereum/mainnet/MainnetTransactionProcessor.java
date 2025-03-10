@@ -291,12 +291,6 @@ public class MainnetTransactionProcessor {
         return TransactionProcessingResult.invalid(validationResult);
       }
 
-      // @TODO corp-ais/blockchain-besu
-      // Validate the transaction is sender have any gas fee granter
-      // check granter has sufficient balance for transact the transaction.
-      // update the `latestTransactionAt` of grantee.
-      // update the `value` of grantee.
-
       final Address senderAddress = transaction.getSender();
       final MutableAccount sender = evmWorldUpdater.getOrCreateSenderAccount(senderAddress);
 
@@ -317,7 +311,7 @@ public class MainnetTransactionProcessor {
           senderAddress,
           previousNonce,
           sender.getNonce());
-
+      
       final Wei transactionGasPrice =
           feeMarket.getTransactionPriceCalculator().price(transaction, blockHeader.getBaseFee());
 
@@ -325,7 +319,19 @@ public class MainnetTransactionProcessor {
 
       final Wei upfrontGasCost =
           transaction.getUpfrontGasCost(transactionGasPrice, blobGasPrice, blobGas);
+
+      // @TODO corp-ais/blockchain-besu
+      // if granter.decrementBalance(upfrontGasCost);
       final Wei previousBalance = sender.decrementBalance(upfrontGasCost);
+
+      // @TODO corp-ais/blockchain-besu
+      // if transaction fee pay by granter
+      // "Deducted granter {} upfront gas cost {} ({} -> {})",
+      //  granterAddress,
+      //  upfrontGasCost
+      //  previousBalance,
+      //  granter.getBalance());
+
       LOG.trace(
           "Deducted sender {} upfront gas cost {} ({} -> {})",
           senderAddress,
