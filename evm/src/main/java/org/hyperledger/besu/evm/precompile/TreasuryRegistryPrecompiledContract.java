@@ -95,7 +95,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
       return FALSE;
     } else {
       final UInt256 initialOwner = UInt256.fromBytes(calldata);
-      if (initialOwner.equals(UInt256.ZERO)) {
+      if (initialOwner.isZero()) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
@@ -106,11 +106,11 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       final UInt256 newOwner = UInt256.fromBytes(calldata);
-      if (newOwner.equals(UInt256.ZERO)) {
+      if (newOwner.isZero()) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, newOwner);
@@ -124,11 +124,11 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
 
   private Bytes setTreasury(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       final UInt256 newTreasury = UInt256.fromBytes(calldata);
-      if (newTreasury.equals(UInt256.ZERO)) {
+      if (newTreasury.isZero()) {
         return FALSE;
       }
       contract.setStorageValue(TREASURY_SLOT, newTreasury);

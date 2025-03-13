@@ -296,7 +296,7 @@ public class MainnetTransactionValidator implements TransactionValidator {
 
     // @TODO corp-ais/blockchain-besu
     // validation rule of gas fee grant
-    // 1. sender has granter.    
+    // 1. sender has granter.
     // 2. check the transaction is 'value' is not 'transfer' or 'contract_creation'.
     //    if ((transaction.getValue()).compareTo(Wei.ZERO) > 0);
     //        return ValidationResult.invalid(

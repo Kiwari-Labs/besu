@@ -105,7 +105,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
       return FALSE;
     } else {
       final UInt256 initialOwner = UInt256.fromBytes(calldata);
-      if (initialOwner.equals(UInt256.ZERO)) {
+      if (initialOwner.isZero()) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
@@ -116,11 +116,11 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       final UInt256 newOwner = UInt256.fromBytes(calldata);
-      if (newOwner.equals(UInt256.ZERO)) {
+      if (newOwner.isZero()) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, newOwner);
@@ -129,7 +129,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   }
 
   private Bytes enable(final MutableAccount contract, final Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       contract.setStorageValue(STATUS_SLOT, UInt256.ONE);
@@ -138,7 +138,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
   }
 
   private Bytes disable(final MutableAccount contract, final Address senderAddress) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       contract.setStorageValue(STATUS_SLOT, UInt256.ZERO);
@@ -156,7 +156,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
 
   private Bytes setGasPrice(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       final UInt256 newGasPrice = UInt256.fromBytes(calldata);
