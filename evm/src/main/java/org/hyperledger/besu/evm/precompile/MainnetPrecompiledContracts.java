@@ -50,6 +50,7 @@ public interface MainnetPrecompiledContracts {
     registry.put(Address.GASPRICE, new GasPricePrecompiledContract(gasCalculator));
     registry.put(Address.REVENUE_RATIO, new RevenueRatioPrecompiledContract(gasCalculator));
     registry.put(Address.TREASURY_REGISTRY, new TreasuryRegistryPrecompiledContract(gasCalculator));
+    registry.put(Address.GASFEE_GRANT, new GasFeeGrantPrecompiledContract(gasCalculator));
   }
 
   /**

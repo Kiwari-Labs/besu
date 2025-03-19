@@ -301,6 +301,13 @@ public class MainnetTransactionProcessor {
         return TransactionProcessingResult.invalid(validationResult);
       }
 
+      // @TODO corp-ais/blockchain-besu
+      // check is granted for all or for program
+      // if granter of ADDRESS.ZERO is not zero mean granted for all.
+      // if granter of program (to) is not zero mean sender granted to call to the contract.
+      // check is grant expired or not
+      // if expired return TransactionProcessingResult.invalid(validationResult);
+
       operationTracer.tracePrepareTransaction(evmWorldUpdater, transaction);
 
       final Set<Address> warmAddressList = new BytesTrieSet<>(Address.SIZE);
@@ -311,7 +318,7 @@ public class MainnetTransactionProcessor {
           senderAddress,
           previousNonce,
           sender.getNonce());
-      
+
       final Wei transactionGasPrice =
           feeMarket.getTransactionPriceCalculator().price(transaction, blockHeader.getBaseFee());
 
@@ -320,17 +327,24 @@ public class MainnetTransactionProcessor {
       final Wei upfrontGasCost =
           transaction.getUpfrontGasCost(transactionGasPrice, blobGasPrice, blobGas);
 
-      // @TODO corp-ais/blockchain-besu
-      // if granter.decrementBalance(upfrontGasCost);
+      // @TODO corp-ais/blockchain-besu {validate-granter}
+      // if (upfrontGasCost.compareTo(granter.getBalance()) > 0)
+      // if (upfrontGasCostCompareTo(spendLimit) > 0)
+      // if (upfrontGasCostCompareTo(periodLimit) > 0)
+
+      // @TODO corp-ais/blockchain-besu {decrementBalance-granter}
+      // if granted deduct balance of granter
+      // granter.decrementBalance(upfrontGasCost);
       final Wei previousBalance = sender.decrementBalance(upfrontGasCost);
 
-      // @TODO corp-ais/blockchain-besu
-      // if transaction fee pay by granter
+      // @TODO corp-ais/blockchain-besu {LOG.trace-deducted-granter}
+      // if granted
+      // LOG.trace(
       // "Deducted granter {} upfront gas cost {} ({} -> {})",
-      //  granterAddress,
-      //  upfrontGasCost
-      //  previousBalance,
-      //  granter.getBalance());
+      // grantedAddress,
+      // upfrontGasCost,
+      // previousBalance,
+      // granter.getBalance());
 
       LOG.trace(
           "Deducted sender {} upfront gas cost {} ({} -> {})",
@@ -512,6 +526,10 @@ public class MainnetTransactionProcessor {
       final long refundedGas =
           gasCalculator.calculateGasRefund(transaction, initialFrame, codeDelegationRefund);
       final Wei refundedWei = transactionGasPrice.multiply(refundedGas);
+
+      // @TODO corp-ais/blockchain-besu {refundedwei-granter}
+      // if granted refunded granter
+
       final Wei balancePriorToRefund = sender.getBalance();
       sender.incrementBalance(refundedWei);
       LOG.atTrace()
@@ -541,6 +559,14 @@ public class MainnetTransactionProcessor {
       } else {
         coinbaseCalculator = CoinbaseFeePriceCalculator.frontier();
       }
+
+      // @TODO corp-ais/blockchain-besu {updateLatestTransaction}
+      // tryResetPeriod back to periodLimit if the latestTransaction is in the past
+      // update the latestTransaction to blockHeader
+      // if reset
+      //  update the periodCanSpend with usedGas
+      // else
+      //  periodCanSpend += usedGas
 
       final Wei coinbaseWeiDelta =
           coinbaseCalculator.price(usedGas, transactionGasPrice, blockHeader.getBaseFee());
