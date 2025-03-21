@@ -152,6 +152,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
     }
   }
 
+  // @TODO corp-ais/blockchain should set storage for each program.
   private Bytes isGranted(final MutableAccount grantee) {
     return grantee.getStorageValue(FEE_GRANT_FLAG_STORAGE);
   }
@@ -192,7 +193,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
     if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
-      // @TODO handle if already granted.
+      // @TODO corp-ais/blockchain handle if already granted.
       final Address granterAddress = Address.wrap(calldata.slice(12, 20));
       final Address granteeAddress = Address.wrap(calldata.slice(44, 20));
       final Address programAddress = Address.wrap(calldata.slice(76, 20));
@@ -202,7 +203,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       final UInt256 endTime = UInt256.fromBytes(calldata.slice(160, 32));
       final UInt256 period = UInt256.fromBytes(calldata.slice(192));
       UInt256 allowance = UInt256.ONE;
-      if (spendLimit.isZero() || granterAddress.equals(Address.ZERO) || granteeAddress.equals(Address.ZERO)) {
+      if (spendLimit.isZero()
+          || granterAddress.equals(Address.ZERO)
+          || granteeAddress.equals(Address.ZERO)) {
         return FALSE;
       } else if (!period.isZero() && !periodLimit.isZero()) {
         if (spendLimit.compareTo(periodLimit) > 0) {
@@ -229,7 +232,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       contract.setStorageValue(rootSlot.add(6L), endTime);
       contract.setStorageValue(rootSlot.add(7L), blockNumber);
       contract.setStorageValue(rootSlot.add(8L), period);
-      // @TODO increment grant size of the account.
+      // @TODO corp-ais/blockchain increment grant size of the account.
 
       return TRUE;
     }
@@ -256,7 +259,8 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       contract.setStorageValue(rootSlot.add(6L), UInt256.ZERO);
       contract.setStorageValue(rootSlot.add(7L), UInt256.ZERO);
       contract.setStorageValue(rootSlot.add(8L), UInt256.ZERO);
-      // @TODO decrement grant size of the account if size equal to zero set flag to zero.
+      // @TODO corp-ais/blockchain decrement grant size of the account if size equal to zero set
+      // flag to zero.
       // final MutableAccount grantee = worldUpdater.getOrCreate(granteeAddress);
       // grantee.setStorageValue(FEE_GRANT_FLAG_STORAGE, UInt256.ZERO);
       return TRUE;
@@ -268,52 +272,44 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       final MutableAccount contract, final Bytes calldata, final UInt256 blockNumber) {
     final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
     Address programAddress = Address.wrap(calldata.slice(44, 20));
-    final UInt256 allowanceForAll =
-        contract.getStorageValue(storageSlotGrant(granteeAddress, Address.ZERO));
-    final UInt256 allowance =
-        contract.getStorageValue(storageSlotGrant(granteeAddress, programAddress));
-    if (allowanceForAll.equals(UInt256.valueOf(2L))) {
+    UInt256 rootSlot = storageSlotGrant(granteeAddress, Address.ZERO);
+    if (contract.getStorageValue(rootSlot.add(1L)).equals(UInt256.valueOf(2L))) {
       programAddress = Address.ZERO;
     }
-    if (allowance.equals(UInt256.valueOf(2L))) {
-      // Solidity Logic
-      //  Grant memory grant = _grants[grantee][program];
-      //       if (grant.latestTransaction + grant.period < this.periodReset(grantee, program)) {
-      //           return grant.periodLimit;
-      //       } else {
-      //           return grant.periodCanSpend;
-      //       }
-      // return contract.getStorageValue(rootSlot.add(4L));
-      return UInt256.ONE;
+    rootSlot = storageSlotGrant(granteeAddress, programAddress);
+    if (contract.getStorageValue(rootSlot.add(1L)).equals(UInt256.valueOf(2L))) {
+      final UInt256 latestTransaction = contract.getStorageValue(rootSlot.add(7L));
+      final UInt256 period = contract.getStorageValue(rootSlot.add(8L));
+      final UInt256 periodReset = UInt256.fromBytes(periodReset(grantee, program, blockNumber));
+      if (latestTransaction.add(period).compareTo(periodReset) < 0) {
+        return contract.getStorageValue(rootSlot.add(3L));
+      } else {
+        return contract.getStorageValue(rootSlot.add(4L));
+      }
     } else {
-      return UInt256.ZERO;
+      return FALSE;
     }
   }
 
-  @SuppressWarnings("UnusedVariable")
   private Bytes periodReset(
       final MutableAccount contract, final Bytes calldata, final UInt256 blockNumber) {
     final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
-    final Address programAddress = Address.wrap(calldata.slice(44, 20));
-    // final UInt256 allowanceForAll = contract.getStorageValue(storageSlotGrant(granteeAddress,
-    // Address.ZERO));
-    // final UInt256 allowance =
-    //     contract.getStorageValue(storageSlotGrant(granteeAddress, programAddress));
-    // if (allowanceForAll.equals(UInt256.valueOf(2L))) {
-    //   // programAddress = Address.ZERO;
-    // }
-    // if (allowance.equals(UInt256.valueOf(2L))) {
-    // Solidity Logic
-    // uint256 resetBlock = _grants[grantee][program].startTime;
-    // uint256 period = _grants[grantee][program].period;
-    // uint256 cycles = (block.number - resetBlock) / period;
-    // if (cycles != 0) {
-    //  resetBlock += cycles * period;
-    // }
-    // return resetBlock + period;
-    // } else {
+    Address programAddress = Address.wrap(calldata.slice(44, 20));
+    UInt256 rootSlot = storageSlotGrant(granteeAddress, Address.ZERO);
+    if (contract.getStorageValue(rootSlot.add(1L)).equals(UInt256.valueOf(2L))) {
+      programAddress = Address.ZERO;
+    }
+    rootSlot = storageSlotGrant(granteeAddress, programAddress);
+    if (contract.getStorageValue(rootSlot.add(1L)).equals(UInt256.valueOf(2L))) {
+      UInt256 resetBlock = contract.getStorageValue(rootSlot.add(5L));
+      final UInt256 period = contract.getStorageValue(rootSlot.add(8L));
+      final UInt256 cycles = (blockNumber.subtract(resetBlock)).divide(period);
+      if (cycles != 0) {
+        resetBlock = resetBlock.add(cycles.multiply(period));
+      }
+      return resetBlock;
+    }
     return FALSE;
-    // }
   }
 
   private Bytes isExpired(

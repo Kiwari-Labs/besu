@@ -70,6 +70,9 @@ public class MainnetTransactionProcessor {
   private static final Bytes FALSE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
 
+  private static final UInt256 FEE_GRANT_FLAG_STORAGE =
+      UInt256.fromHexString("0x330bb6449068d17e3815a045685a05a106741a6e960986b3c72eb86cb692da00");
+
   private static final UInt256 PRECOMPILE_STORAGE_SLOT = UInt256.valueOf(2L);
 
   private static final Set<Address> EMPTY_ADDRESS_SET = Set.of();
@@ -301,12 +304,54 @@ public class MainnetTransactionProcessor {
         return TransactionProcessingResult.invalid(validationResult);
       }
 
-      // @TODO corp-ais/blockchain-besu
-      // check is granted for all or for program
-      // if granter of ADDRESS.ZERO is not zero mean granted for all.
-      // if granter of program (to) is not zero mean sender granted to call to the contract.
-      // check is grant expired or not
-      // if expired return TransactionProcessingResult.invalid(validationResult);
+      // @TODO corp-ais/blockchain-besu {validate-expired}
+      Wei spendLimit;
+      Wei periodLimit;
+      Wei periodCanSpend;
+      Address granterAddress;
+      MutableAccount granter;
+      boolean isPeriodic = false;
+      final boolean isGranted =
+          !sender.getStorageValue(FEE_GRANT_FLAG_STORAGE).isZero()
+              && (sender.getBalance()).isZero();
+      if (isGranted) {
+        final MutableAccount feeGrant = evmWorldUpdater.getOrCreate(ADDRESS.GASFEE_GRANT);
+        final UInt256 rootSlotForAll = getRootSlotOfGasFeeGrant(sender, ADDRESS.ZERO);
+        @SuppressWarnings("OptionalGetWithoutIsPresent")
+        final Address to = transaction.getTo().get();
+        final UInt256 rootSlotForProgram = getRootSlotOfGasFeeGrant(sender, to);
+        final UInt256 allowanceForAll = feeGrant.getStorageValue(rootSlotForAll.add(1L));
+        final UInt256 allowanceForProgram = feeGrant.getStorageValue(rootSlotForProgram.add(1L));
+        final UInt256 blockNumber = UInt256.valueOf(blockHeader.getNumber());
+        if (!allowanceForAll.isZero() || !allowanceForProgram.isZero()) {
+          final UInt256 endTime = feeGrant.getStorageValue(rootSlotForProgram.add(6L));
+          if (blockNumber.compareTo(endTime) > 0) {
+            LOG.debug("Invalid fee grant transaction expired");
+            return TransactionProcessingResult.invalid(
+                ValidationResult.invalid(
+                    TransactionInvalidReason.INVALID_TRANSACTION_FORMAT,
+                    String.format("fee grant expired at %s", endTime.toQuantityHexString())));
+          }
+        } else {
+          if (!allowanceForAll.isZero()) {
+            granterAddress = Address.warp(feeGrant.getStorageValue(rootSlotForAll));
+            spendLimit = feeGrant.getStorageValue(feeGrant.getStorageValue(rootSlotForAll).add(2L));
+            if (allowanceForAll.equals(UInt256.valueOf(2L))) {
+              isPeriodic = true;
+              // calculate periodCanSpend
+            }
+          } else if (allowanceForAll.isZero() && !allowanceForProgram.isZero()) {
+            granterAddress = Address.warp(feeGrant.getStorageValue(rootSlotForProgram));
+            spendLimit =
+                feeGrant.getStorageValue(feeGrant.getStorageValue(rootSlotForProgram).add(2L));
+            if (allowanceForProgram.equals(UInt256.valueOf(2L))) {
+              isPeriodic = true;
+              // calculate periodCanSpend
+            }
+          }
+          granter = evmWorldUpdater.getOrCreateSenderAccount(granterAddress);
+        }
+      }
 
       operationTracer.tracePrepareTransaction(evmWorldUpdater, transaction);
 
@@ -327,31 +372,42 @@ public class MainnetTransactionProcessor {
       final Wei upfrontGasCost =
           transaction.getUpfrontGasCost(transactionGasPrice, blobGasPrice, blobGas);
 
-      // @TODO corp-ais/blockchain-besu {validate-granter}
-      // if (upfrontGasCost.compareTo(granter.getBalance()) > 0)
-      // if (upfrontGasCostCompareTo(spendLimit) > 0)
-      // if (upfrontGasCostCompareTo(periodLimit) > 0)
+      if (isGranted) {
+        if (upfrontGasCost.compareTo(granter.getBalance()) > 0
+            || upfrontGasCost.compareTo(spendLimit) > 0
+            || (isPeriodic && upfrontGasCost.compareTo(periodCanSpend) > 0)) {
+          LOG.debug("Invalid fee grant transaction up-front cost exceeds allowance");
+          return TransactionProcessingResult.invalid(
+              ValidationResult.invalid(
+                  TransactionInvalidReason.UPFRONT_COST_EXCEEDS_BALANCE,
+                  String.format(
+                      "transaction up-front cost %s exceeds transaction sender account balance %s",
+                      upfrontCost.toQuantityHexString(), senderBalance.toQuantityHexString())));
+        }
+      }
 
-      // @TODO corp-ais/blockchain-besu {decrementBalance-granter}
-      // if granted deduct balance of granter
-      // granter.decrementBalance(upfrontGasCost);
-      final Wei previousBalance = sender.decrementBalance(upfrontGasCost);
+      Wei previousBalance;
+      if (isGranted) {
+        // deducted balance from granter account.
+        previousBalance = granter.decrementBalance(upfrontGasCost);
 
-      // @TODO corp-ais/blockchain-besu {LOG.trace-deducted-granter}
-      // if granted
-      // LOG.trace(
-      // "Deducted granter {} upfront gas cost {} ({} -> {})",
-      // grantedAddress,
-      // upfrontGasCost,
-      // previousBalance,
-      // granter.getBalance());
+        LOG.trace(
+            "Deducted granter {} upfront gas cost {} ({} -> {})",
+            grantedAddress,
+            upfrontGasCost,
+            previousBalance,
+            granter.getBalance());
+      } else {
+        // deducted balance from sender account.
+        previousBalance = sender.decrementBalance(upfrontGasCost);
 
-      LOG.trace(
-          "Deducted sender {} upfront gas cost {} ({} -> {})",
-          senderAddress,
-          upfrontGasCost,
-          previousBalance,
-          sender.getBalance());
+        LOG.trace(
+            "Deducted sender {} upfront gas cost {} ({} -> {})",
+            senderAddress,
+            upfrontGasCost,
+            previousBalance,
+            sender.getBalance());
+      }
 
       long codeDelegationRefund = 0L;
       if (transaction.getCodeDelegationList().isPresent()) {
@@ -528,17 +584,29 @@ public class MainnetTransactionProcessor {
       final Wei refundedWei = transactionGasPrice.multiply(refundedGas);
 
       // @TODO corp-ais/blockchain-besu {refundedwei-granter}
-      // if granted refunded granter
+      Wei balancePriorToRefund;
+      if (isGranted) {
+        balancePriorToRefund = granter.getBalance();
+        granter.incrementBalance(refundedWei);
+        LOG.atTrace()
+            .setMessage("refunded granter {}  {} wei ({} -> {})")
+            .addArgument(granterAddress)
+            .addArgument(refundedWei)
+            .addArgument(balancePriorToRefund)
+            .addArgument(sender.getBalance())
+            .log();
+      } else {
+        balancePriorToRefund = sender.getBalance();
+        sender.incrementBalance(refundedWei);
+        LOG.atTrace()
+            .setMessage("refunded sender {}  {} wei ({} -> {})")
+            .addArgument(senderAddress)
+            .addArgument(refundedWei)
+            .addArgument(balancePriorToRefund)
+            .addArgument(sender.getBalance())
+            .log();
+      }
 
-      final Wei balancePriorToRefund = sender.getBalance();
-      sender.incrementBalance(refundedWei);
-      LOG.atTrace()
-          .setMessage("refunded sender {}  {} wei ({} -> {})")
-          .addArgument(senderAddress)
-          .addArgument(refundedWei)
-          .addArgument(balancePriorToRefund)
-          .addArgument(sender.getBalance())
-          .log();
       final long gasUsedByTransaction = transaction.getGasLimit() - initialFrame.getRemainingGas();
 
       // update the coinbase
@@ -735,6 +803,12 @@ public class MainnetTransactionProcessor {
   private Bytes getStorageAtFromRevenueRatio(final WorldUpdater worldUpdater, final long slot) {
     final MutableAccount revenueRatio = worldUpdater.getOrCreate(Address.REVENUE_RATIO);
     return revenueRatio.getStorageValue(UInt256.valueOf(slot));
+  }
+
+  private UInt256 getRootSlotOfGasFeeGrant(final Address sender, final Address program) {
+    final Bytes32 root = Hash.keccak256(Bytes.concatenate(PRECOMPILE_STORAGE_SLOT, grantee));
+    final Bytes32 slot = Hash.keccak256(Bytes.concatenate(root, program));
+    return UInt256.fromBytes(slot);
   }
 
   public static Builder builder() {

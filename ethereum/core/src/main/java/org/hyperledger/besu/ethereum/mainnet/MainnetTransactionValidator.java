@@ -298,7 +298,8 @@ public class MainnetTransactionValidator implements TransactionValidator {
       if (sender.getCodeHash() != null) codeHash = sender.getCodeHash();
     }
 
-    final boolean isGranted = !(sender.getStorageValue(FEE_GRANT_FLAG_STORAGE)).isZero();
+    final boolean isGranted =
+        !(sender.getStorageValue(FEE_GRANT_FLAG_STORAGE)).isZero() && senderBalance.isZero();
     if (isGranted) {
       if (!(transaction.getValue()).isZero()) {
         return ValidationResult.invalid(
