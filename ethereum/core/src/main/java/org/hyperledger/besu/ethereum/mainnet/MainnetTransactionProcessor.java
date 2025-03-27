@@ -304,49 +304,68 @@ public class MainnetTransactionProcessor {
         return TransactionProcessingResult.invalid(validationResult);
       }
 
-      // @TODO corp-ais/blockchain-besu {validate-expired}
+      //
       Wei spendLimit;
       Wei periodLimit;
       Wei periodCanSpend;
+      UInt256 periodReset;
+      UInt256 latestTransaction;
+      UInt256 rootStorageSlot;
       Address granterAddress;
       MutableAccount granter;
       boolean isPeriodic = false;
+
       final boolean isGranted =
           !sender.getStorageValue(FEE_GRANT_FLAG_STORAGE).isZero()
               && (sender.getBalance()).isZero();
+      // Check is the transaction send from granted account.
       if (isGranted) {
         final MutableAccount feeGrant = evmWorldUpdater.getOrCreate(ADDRESS.GASFEE_GRANT);
         final UInt256 rootSlotForAll = getRootSlotOfGasFeeGrant(sender, ADDRESS.ZERO);
+
         @SuppressWarnings("OptionalGetWithoutIsPresent")
         final Address to = transaction.getTo().get();
         final UInt256 rootSlotForProgram = getRootSlotOfGasFeeGrant(sender, to);
+
         final UInt256 allowanceForAll = feeGrant.getStorageValue(rootSlotForAll.add(1L));
         final UInt256 allowanceForProgram = feeGrant.getStorageValue(rootSlotForProgram.add(1L));
+        final UInt256 allowance =
+            !allowanceForAll.isZero()
+                ? allowanceForAll
+                : !allowanceForProgram.isZero() ? allowanceForProgram : UInt256.ZERO;
         final UInt256 blockNumber = UInt256.valueOf(blockHeader.getNumber());
-        if (!allowanceForAll.isZero() || !allowanceForProgram.isZero()) {
-          final UInt256 endTime = feeGrant.getStorageValue(rootSlotForProgram.add(6L));
+        if (!allowance.isZero()) {
+          rootStorageSlot =
+              !allowanceForAll.isZero()
+                  ? rootSlotForAll
+                  : !allowanceForProgram.isZero() ? rootSlotForProgram : UInt256.ZERO;
+          final UInt256 endTime = feeGrant.getStorageValue(rootStorageSlot.add(6L));
+          // Check if the granted is expired or nor.
           if (blockNumber.compareTo(endTime) > 0) {
             LOG.debug("Invalid fee grant transaction expired");
             return TransactionProcessingResult.invalid(
                 ValidationResult.invalid(
                     TransactionInvalidReason.INVALID_TRANSACTION_FORMAT,
                     String.format("fee grant expired at %s", endTime.toQuantityHexString())));
-          }
-        } else {
-          if (!allowanceForAll.isZero()) {
-            granterAddress = Address.warp(feeGrant.getStorageValue(rootSlotForAll));
-            spendLimit = feeGrant.getStorageValue(feeGrant.getStorageValue(rootSlotForAll).add(2L));
-            if (allowanceForAll.equals(UInt256.valueOf(2L))) {
+          } else {
+            granterAddress = Address.warp(feeGrant.getStorageValue(rootStorageSlot));
+            spendLimit = feeGrant.getStorageValue(rootStorageSlot.add(2L));
+            // Check is allowance type is periodic.
+            if (rootStorageSlot.equals(UInt256.valueOf(2L))) {
+              // Get period can spend value.
+              periodReset = feeGrant.getStorageValue(rootStorageSlot.add(5L));
+              latestTransaction = feeGrant.getStorageValue(rootStorageSlot.add(7L));
+              final UInt256 period = feeGrant.getStorageValue(rootStorageSlot.add(8L));
+              final UInt256 cycles = (blockNumber.subtract(periodReset)).divide(period);
+              if (cycles != 0) {
+                periodReset = periodReset.add(cycles.multiply(period));
+              }
+              if (latestTransaction.add(period).compareTo(periodReset) < 0) {
+                periodCanSpend = feeGrant.getStorageValue(rootStorageSlot.add(3L));
+              } else {
+                periodCanSpend = feeGrant.getStorageValue(rootStorageSlot.add(4L));
+              }
               isPeriodic = true;
-              // calculate periodCanSpend
-            }
-          } else if (allowanceForAll.isZero() && !allowanceForProgram.isZero()) {
-            granterAddress = Address.warp(feeGrant.getStorageValue(rootSlotForProgram));
-            spendLimit =
-                feeGrant.getStorageValue(feeGrant.getStorageValue(rootSlotForProgram).add(2L));
-            if (allowanceForProgram.equals(UInt256.valueOf(2L))) {
-              isPeriodic = true;
-              // calculate periodCanSpend
             }
           }
           granter = evmWorldUpdater.getOrCreateSenderAccount(granterAddress);
@@ -583,7 +602,7 @@ public class MainnetTransactionProcessor {
           gasCalculator.calculateGasRefund(transaction, initialFrame, codeDelegationRefund);
       final Wei refundedWei = transactionGasPrice.multiply(refundedGas);
 
-      // @TODO corp-ais/blockchain-besu {refundedwei-granter}
+      // Refund the granter if the transaction is fee grant transaction.
       Wei balancePriorToRefund;
       if (isGranted) {
         balancePriorToRefund = granter.getBalance();
@@ -627,14 +646,6 @@ public class MainnetTransactionProcessor {
       } else {
         coinbaseCalculator = CoinbaseFeePriceCalculator.frontier();
       }
-
-      // @TODO corp-ais/blockchain-besu {updateLatestTransaction}
-      // tryResetPeriod back to periodLimit if the latestTransaction is in the past
-      // update the latestTransaction to blockHeader
-      // if reset
-      //  update the periodCanSpend with usedGas
-      // else
-      //  periodCanSpend += usedGas
 
       final Wei coinbaseWeiDelta =
           coinbaseCalculator.price(usedGas, transactionGasPrice, blockHeader.getBaseFee());
@@ -681,6 +692,19 @@ public class MainnetTransactionProcessor {
             coinbase.incrementBalance(fee);
             treasury.incrementBalance(fee);
           }
+        }
+      }
+
+      // Check if granted transaction then update latest transaction.
+      if (isGranted) {
+        if (isPeriodic) {
+          if (latestTransaction.add(period).compareTo(periodReset) < 0) {
+            periodCanSpend = periodLimit.subtract(coinbaseWeiDelta);
+          } else {
+            periodCanSpend = periodCanSpend.subtract(coinbaseWeiDelta);
+          }
+          feeGrant.setStorageValue(rootStorageSlot.add(4L), periodCanSpend);
+          feeGrant.setStorageValue(rootStorageSlot.add(7L), blockNumber);
         }
       }
 
