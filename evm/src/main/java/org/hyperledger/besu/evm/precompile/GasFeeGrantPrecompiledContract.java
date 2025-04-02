@@ -280,7 +280,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
     if (contract.getStorageValue(rootSlot.add(1L)).equals(UInt256.valueOf(2L))) {
       final UInt256 latestTransaction = contract.getStorageValue(rootSlot.add(7L));
       final UInt256 period = contract.getStorageValue(rootSlot.add(8L));
-      final UInt256 periodReset = UInt256.fromBytes(periodReset(grantee, program, blockNumber));
+      final UInt256 periodReset = UInt256.fromBytes(periodReset(contract, calldata, blockNumber));
       if (latestTransaction.add(period).compareTo(periodReset) < 0) {
         return contract.getStorageValue(rootSlot.add(3L));
       } else {
@@ -304,7 +304,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       UInt256 resetBlock = contract.getStorageValue(rootSlot.add(5L));
       final UInt256 period = contract.getStorageValue(rootSlot.add(8L));
       final UInt256 cycles = (blockNumber.subtract(resetBlock)).divide(period);
-      if (cycles != 0) {
+      if (!cycles.isZero()) {
         resetBlock = resetBlock.add(cycles.multiply(period));
       }
       return resetBlock;
