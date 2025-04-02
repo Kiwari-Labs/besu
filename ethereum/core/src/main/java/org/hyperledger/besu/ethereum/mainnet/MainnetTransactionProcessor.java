@@ -344,14 +344,14 @@ public class MainnetTransactionProcessor {
                   : !allowanceForProgram.isZero() ? rootSlotForProgram : UInt256.ZERO;
           final UInt256 endTime = feeGrant.getStorageValue(rootStorageSlot.add(6L));
           // Check if the granted is expired or nor.
-          if (blockNumber.compareTo(endTime) > 0) {
+          if (!endTime.isZero() && blockNumber.compareTo(endTime) > 0) {
             LOG.debug("Invalid fee grant transaction expired");
             return TransactionProcessingResult.invalid(
                 ValidationResult.invalid(
                     TransactionInvalidReason.INVALID_TRANSACTION_FORMAT,
                     String.format("fee grant expired at %s", endTime.toQuantityHexString())));
           } else {
-            granterAddress = Address.wrap(feeGrant.getStorageValue(rootStorageSlot));
+            granterAddress = Address.wrap(feeGrant.getStorageValue(rootStorageSlot).slice(12, 20));
             spendLimit = Wei.of((feeGrant.getStorageValue(rootStorageSlot.add(2L))));
             // Check is allowance type is periodic.
             if (rootStorageSlot.equals(UInt256.valueOf(2L))) {
