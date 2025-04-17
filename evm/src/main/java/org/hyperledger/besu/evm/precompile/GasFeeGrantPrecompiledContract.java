@@ -64,8 +64,11 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
   private static final Bytes IS_EXPIRED_SIGNATURE =
       Hash.keccak256(Bytes.of("isExpired(address,address)".getBytes(UTF_8))).slice(0, 4);
 
-  private static final Bytes IS_GRANT_SIGNATURE =
-      Hash.keccak256(Bytes.of("isGranted(address)".getBytes(UTF_8))).slice(0, 4);
+  private static final Bytes IS_GRANT_FOR_PROGRAM_SIGNATURE =
+      Hash.keccak256(Bytes.of("isGrantedForProgram(address,address)".getBytes(UTF_8))).slice(0, 4);
+
+  private static final Bytes IS_GRANT_FOR_ALL_PROGRAM_SIGNATURE =
+      Hash.keccak256(Bytes.of("isGrantedForAllProgram(address)".getBytes(UTF_8))).slice(0, 4);
 
   private static final Bytes SET_FEE_GRANT_SIGNATURE =
       Hash.keccak256(
@@ -86,8 +89,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
   private static final UInt256 GRANTS_SLOT = UInt256.valueOf(2L);
 
   /** mapping(address => uint256) */
-  @SuppressWarnings("UnusedVariable")
-  private static final UInt256 GRANTS_COUNTER_SLOT = UInt256.valueOf(3L);
+  private static final UInt256 GRANTS_COUNTER = UInt256.valueOf(3L);
 
   /** Returns */
   private static final Bytes FALSE =
@@ -132,6 +134,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       if (initialOwner.isZero()) {
         return FALSE;
       }
+      if (contract.getNonce() == 0L) {
+        contract.incrementNonce();
+      }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
       contract.setStorageValue(INIT_SLOT, UInt256.ONE);
       return TRUE;
@@ -152,12 +157,29 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
     }
   }
 
-  // @TODO corp-ais/blockchain should set storage for each program.
-  private Bytes isGranted(final MutableAccount grantee) {
-    return grantee.getStorageValue(FEE_GRANT_FLAG_STORAGE);
+  private Bytes isGrantedForProgram(final MutableAccount contract, final Bytes calldata) {
+    final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
+    final Address programAddress = Address.wrap(calldata.slice(44, 20));
+    final UInt256 rootSlot = storageSlotGrant(granteeAddress, programAddress);
+    if (contract.getStorageValue(rootSlot.add(1L)).isZero()) {
+      return FALSE;
+    } else {
+      return TRUE;
+    }
   }
 
-  private Bytes grant(final MutableAccount contract, final Bytes calldata) {
+  private Bytes isGrantedForAllProgram(final MutableAccount contract, final Bytes calldata) {
+    final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
+    final UInt256 rootSlot = storageSlotGrant(granteeAddress, Address.ZERO);
+    if (contract.getStorageValue(rootSlot.add(1L)).isZero()) {
+      return FALSE;
+    } else {
+      return TRUE;
+    }
+  }
+
+  private Bytes grant(
+      final MutableAccount contract, final Bytes calldata, final UInt256 blockNumber) {
     final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
     final Address programAddress = Address.wrap(calldata.slice(44, 20));
     final UInt256 rootSlot = storageSlotGrant(granteeAddress, programAddress);
@@ -165,9 +187,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
     final UInt256 allowance = contract.getStorageValue(rootSlot.add(1L));
     final UInt256 spendLimit = contract.getStorageValue(rootSlot.add(2L));
     final UInt256 periodLimit = contract.getStorageValue(rootSlot.add(3L));
-
-    final UInt256 periodCanSpend = contract.getStorageValue(rootSlot.add(4L)); // @TODO handle
-
+    final UInt256 periodCanSpend = UInt256.fromBytes(periodCanSpend(contract, calldata.slice(32), blockNumber));
     final UInt256 startTime = contract.getStorageValue(rootSlot.add(5L));
     final UInt256 endTime = contract.getStorageValue(rootSlot.add(6L));
     final UInt256 latestTransaction = contract.getStorageValue(rootSlot.add(7L));
@@ -193,48 +213,51 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
     if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
-      // @TODO corp-ais/blockchain handle if already granted.
-      final Address granterAddress = Address.wrap(calldata.slice(12, 20));
-      final Address granteeAddress = Address.wrap(calldata.slice(44, 20));
-      final Address programAddress = Address.wrap(calldata.slice(76, 20));
-      final UInt256 rootSlot = storageSlotGrant(granteeAddress, programAddress);
-      final UInt256 spendLimit = UInt256.fromBytes(calldata.slice(96, 32));
-      final UInt256 periodLimit = UInt256.fromBytes(calldata.slice(128, 32));
-      final UInt256 endTime = UInt256.fromBytes(calldata.slice(160, 32));
-      final UInt256 period = UInt256.fromBytes(calldata.slice(192));
-      UInt256 allowance = UInt256.ONE;
-      if (spendLimit.isZero()
-          || granterAddress.equals(Address.ZERO)
-          || granteeAddress.equals(Address.ZERO)) {
+      if (isGrantedForProgram(contract, calldata.slice(32)).isZero()) {
+        final Address granterAddress = Address.wrap(calldata.slice(12, 20));
+        final Address granteeAddress = Address.wrap(calldata.slice(44, 20));
+        final Address programAddress = Address.wrap(calldata.slice(76, 20));
+        final UInt256 rootSlot = storageSlotGrant(granteeAddress, programAddress);
+        final UInt256 spendLimit = UInt256.fromBytes(calldata.slice(96, 32));
+        final UInt256 periodLimit = UInt256.fromBytes(calldata.slice(128, 32));
+        final UInt256 endTime = UInt256.fromBytes(calldata.slice(160, 32));
+        final UInt256 period = UInt256.fromBytes(calldata.slice(192));
+        UInt256 allowance = UInt256.ONE;
+        if (spendLimit.isZero()
+            || granterAddress.equals(Address.ZERO)
+            || granteeAddress.equals(Address.ZERO)) {
+          return FALSE;
+        } else if (!period.isZero() && !periodLimit.isZero()) {
+          if (spendLimit.compareTo(periodLimit) > 0) {
+            return FALSE;
+          }
+          UInt256 firstPeriodReset = blockNumber.add(period);
+          if (!endTime.isZero() && (endTime.compareTo(firstPeriodReset) > 0)) {
+            return FALSE;
+          }
+          allowance = UInt256.valueOf(2L);
+        }
+        final MutableAccount grantee = worldUpdater.getOrCreate(granteeAddress);
+        // if account is empty create it by increment nonce.
+        if (grantee.getNonce() == 0L) {
+          grantee.incrementNonce();
+        }
+        grantee.setStorageValue(FEE_GRANT_FLAG_STORAGE, UInt256.ONE);
+        contract.setStorageValue(rootSlot, UInt256.fromBytes(granterAddress));
+        contract.setStorageValue(rootSlot.add(1L), allowance);
+        contract.setStorageValue(rootSlot.add(2L), spendLimit);
+        contract.setStorageValue(rootSlot.add(3L), periodLimit);
+        contract.setStorageValue(rootSlot.add(4L), periodLimit);
+        contract.setStorageValue(rootSlot.add(5L), blockNumber);
+        contract.setStorageValue(rootSlot.add(6L), endTime);
+        contract.setStorageValue(rootSlot.add(7L), blockNumber);
+        contract.setStorageValue(rootSlot.add(8L), period);
+        UInt256 counter = contract.getStorageValue(GRANTS_COUNTER).add(UInt256.ONE);
+        contract.setStorageValue(GRANTS_COUNTER, counter);
+        return TRUE;
+      } else {
         return FALSE;
-      } else if (!period.isZero() && !periodLimit.isZero()) {
-        if (spendLimit.compareTo(periodLimit) > 0) {
-          return FALSE;
-        }
-        UInt256 firstPeriodReset = blockNumber.add(period);
-        if (!endTime.isZero() && (endTime.compareTo(firstPeriodReset) > 0)) {
-          return FALSE;
-        }
-        allowance = UInt256.valueOf(2L);
       }
-      final MutableAccount grantee = worldUpdater.getOrCreate(granteeAddress);
-      // if account is empty create it by increment nonce.
-      if (grantee.getNonce() == 0L) {
-        grantee.incrementNonce();
-      }
-      grantee.setStorageValue(FEE_GRANT_FLAG_STORAGE, UInt256.ONE);
-      contract.setStorageValue(rootSlot, UInt256.fromBytes(granterAddress));
-      contract.setStorageValue(rootSlot.add(1L), allowance);
-      contract.setStorageValue(rootSlot.add(2L), spendLimit);
-      contract.setStorageValue(rootSlot.add(3L), periodLimit);
-      contract.setStorageValue(rootSlot.add(4L), periodLimit);
-      contract.setStorageValue(rootSlot.add(5L), blockNumber);
-      contract.setStorageValue(rootSlot.add(6L), endTime);
-      contract.setStorageValue(rootSlot.add(7L), blockNumber);
-      contract.setStorageValue(rootSlot.add(8L), period);
-      // @TODO corp-ais/blockchain increment grant size of the account.
-
-      return TRUE;
     }
   }
 
@@ -259,10 +282,14 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       contract.setStorageValue(rootSlot.add(6L), UInt256.ZERO);
       contract.setStorageValue(rootSlot.add(7L), UInt256.ZERO);
       contract.setStorageValue(rootSlot.add(8L), UInt256.ZERO);
-      // @TODO corp-ais/blockchain decrement grant size of the account if size equal to zero set
-      // flag to zero.
-      // final MutableAccount grantee = worldUpdater.getOrCreate(granteeAddress);
-      // grantee.setStorageValue(FEE_GRANT_FLAG_STORAGE, UInt256.ZERO);
+      final UInt256 grantCounterSlot =
+          UInt256.fromBytes(Hash.keccak256(Bytes.concatenate(GRANTS_COUNTER, granteeAddress)));
+      final UInt256 counter = contract.getStorageValue(grantCounterSlot).subtract(UInt256.ONE);
+      contract.setStorageValue(grantCounterSlot, counter);
+      if (counter.isZero()) {
+        final MutableAccount grantee = worldUpdater.getOrCreate(granteeAddress);
+        grantee.setStorageValue(FEE_GRANT_FLAG_STORAGE, UInt256.ZERO);
+      }
       return TRUE;
     }
   }
@@ -364,23 +391,21 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(GRANT_SIGNATURE)) {
-        return PrecompileContractResult.success(grant(precompile, calldata));
+        return PrecompileContractResult.success(grant(precompile, calldata, blockNumber));
       } else if (function.equals(PERIOD_CAN_SPEND_SIGNATURE)) {
         return PrecompileContractResult.success(periodCanSpend(precompile, calldata, blockNumber));
       } else if (function.equals(PERIOD_RESET_SIGNATURE)) {
         return PrecompileContractResult.success(periodReset(precompile, calldata, blockNumber));
       } else if (function.equals(IS_EXPIRED_SIGNATURE)) {
-        final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
-        final MutableAccount grantee = worldUpdater.getOrCreate(granteeAddress);
-        if (isGranted(grantee).isZero()) {
+        if (isGrantedForProgram(precompile, calldata).isZero()) {
           return PrecompileContractResult.success(TRUE);
         } else {
           return PrecompileContractResult.success(isExpired(precompile, calldata, blockNumber));
         }
-      } else if (function.equals(IS_GRANT_SIGNATURE)) {
-        final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
-        final MutableAccount grantee = worldUpdater.getOrCreate(granteeAddress);
-        return PrecompileContractResult.success(isGranted(grantee));
+      } else if (function.equals(IS_GRANT_FOR_PROGRAM_SIGNATURE)) {
+        return PrecompileContractResult.success(isGrantedForProgram(precompile, calldata));
+      } else if (function.equals(IS_GRANT_FOR_ALL_PROGRAM_SIGNATURE)) {
+        return PrecompileContractResult.success(isGrantedForAllProgram(precompile, calldata));
       } else if (function.equals(SET_FEE_GRANT_SIGNATURE)) {
         return PrecompileContractResult.success(
             setFeeGrant(precompile, senderAddress, worldUpdater, calldata, blockNumber));

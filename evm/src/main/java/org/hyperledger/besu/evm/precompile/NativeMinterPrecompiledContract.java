@@ -93,6 +93,9 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
       if (initialOwner.isZero()) {
         return FALSE;
       }
+      if (contract.getNonce() == 0L) {
+        contract.incrementNonce();
+      }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
       contract.setStorageValue(INIT_SLOT, UInt256.ONE);
       return TRUE;
