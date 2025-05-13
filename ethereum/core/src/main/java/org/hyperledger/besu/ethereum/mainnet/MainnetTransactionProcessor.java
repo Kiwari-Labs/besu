@@ -70,6 +70,9 @@ public class MainnetTransactionProcessor {
   private static final Bytes FALSE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000000");
 
+  private static final UInt256 FEE_GRANT_FLAG_STORAGE =
+      UInt256.fromHexString("0x330bb6449068d17e3815a045685a05a106741a6e960986b3c72eb86cb692da00");
+
   private static final UInt256 PRECOMPILE_STORAGE_SLOT = UInt256.valueOf(2L);
 
   private static final Set<Address> EMPTY_ADDRESS_SET = Set.of();
@@ -301,6 +304,78 @@ public class MainnetTransactionProcessor {
         return TransactionProcessingResult.invalid(validationResult);
       }
 
+      Wei spendLimit = Wei.ZERO;
+      Wei periodLimit = Wei.ZERO;
+      Wei periodCanSpend = Wei.ZERO;
+      UInt256 periodReset = UInt256.ZERO;
+      ;
+      UInt256 latestTransaction = UInt256.ZERO;
+      ;
+      UInt256 rootStorageSlot = UInt256.ZERO;
+      ;
+      UInt256 period = UInt256.ZERO;
+      Address granterAddress = Address.ZERO;
+      MutableAccount granter = evmWorldUpdater.getOrCreate(Address.ZERO);
+      boolean isPeriodic = false;
+
+      final boolean isGranted =
+          !sender.getStorageValue(FEE_GRANT_FLAG_STORAGE).isZero()
+              && (sender.getBalance()).isZero();
+      final MutableAccount feeGrant = evmWorldUpdater.getOrCreate(Address.GASFEE_GRANT);
+      // Check is the transaction send from granted account.
+      if (isGranted) {
+        final UInt256 rootSlotForAll = getRootSlotOfGasFeeGrant(senderAddress, Address.ZERO);
+
+        @SuppressWarnings("OptionalGetWithoutIsPresent")
+        final Address to = transaction.getTo().get();
+        final UInt256 rootSlotForProgram = getRootSlotOfGasFeeGrant(senderAddress, to);
+
+        final UInt256 allowanceForAll = feeGrant.getStorageValue(rootSlotForAll.add(1L));
+        final UInt256 allowanceForProgram = feeGrant.getStorageValue(rootSlotForProgram.add(1L));
+        final UInt256 allowance =
+            !allowanceForAll.isZero()
+                ? allowanceForAll
+                : !allowanceForProgram.isZero() ? allowanceForProgram : UInt256.ZERO;
+        final UInt256 blockNumber = UInt256.valueOf(blockHeader.getNumber());
+        if (!allowance.isZero()) {
+          rootStorageSlot =
+              !allowanceForAll.isZero()
+                  ? rootSlotForAll
+                  : !allowanceForProgram.isZero() ? rootSlotForProgram : UInt256.ZERO;
+          final UInt256 endTime = feeGrant.getStorageValue(rootStorageSlot.add(6L));
+          // Check if the granted is expired or nor.
+          if (!endTime.isZero() && blockNumber.compareTo(endTime) > 0) {
+            LOG.debug("Invalid fee grant transaction expired");
+            return TransactionProcessingResult.invalid(
+                ValidationResult.invalid(
+                    TransactionInvalidReason.INVALID_TRANSACTION_FORMAT,
+                    String.format("fee grant expired at %s", endTime.toQuantityHexString())));
+          } else {
+            granterAddress = Address.wrap(feeGrant.getStorageValue(rootStorageSlot).slice(12, 20));
+            spendLimit = Wei.of((feeGrant.getStorageValue(rootStorageSlot.add(2L))));
+            // Check is allowance type is periodic.
+            if (rootStorageSlot.equals(UInt256.valueOf(2L))) {
+              // Get period can spend value.
+              periodReset = feeGrant.getStorageValue(rootStorageSlot.add(5L));
+              latestTransaction = feeGrant.getStorageValue(rootStorageSlot.add(7L));
+              period = feeGrant.getStorageValue(rootStorageSlot.add(8L));
+              final UInt256 cycles = (blockNumber.subtract(periodReset)).divide(period);
+              if (!cycles.isZero()) {
+                periodReset = periodReset.add(cycles.multiply(period));
+              }
+              if (latestTransaction.add(period).compareTo(periodReset) < 0) {
+                periodLimit = Wei.of(feeGrant.getStorageValue(rootStorageSlot.add(3L)));
+                periodCanSpend = periodLimit;
+              } else {
+                periodCanSpend = Wei.of(feeGrant.getStorageValue(rootStorageSlot.add(4L)));
+              }
+              isPeriodic = true;
+            }
+          }
+          granter = evmWorldUpdater.getOrCreateSenderAccount(granterAddress);
+        }
+      }
+
       operationTracer.tracePrepareTransaction(evmWorldUpdater, transaction);
 
       final Set<Address> warmAddressList = new BytesTrieSet<>(Address.SIZE);
@@ -319,13 +394,44 @@ public class MainnetTransactionProcessor {
 
       final Wei upfrontGasCost =
           transaction.getUpfrontGasCost(transactionGasPrice, blobGasPrice, blobGas);
-      final Wei previousBalance = sender.decrementBalance(upfrontGasCost);
-      LOG.trace(
-          "Deducted sender {} upfront gas cost {} ({} -> {})",
-          senderAddress,
-          upfrontGasCost,
-          previousBalance,
-          sender.getBalance());
+
+      if (isGranted) {
+        if (upfrontGasCost.compareTo(granter.getBalance()) > 0
+            || upfrontGasCost.compareTo(spendLimit) > 0
+            || (isPeriodic && upfrontGasCost.compareTo(periodCanSpend) > 0)) {
+          LOG.debug("Invalid fee grant transaction up-front cost exceeds allowance");
+          return TransactionProcessingResult.invalid(
+              ValidationResult.invalid(
+                  TransactionInvalidReason.UPFRONT_COST_EXCEEDS_BALANCE,
+                  String.format(
+                      "transaction up-front cost %s exceeds transaction granter account balance %s",
+                      upfrontGasCost.toQuantityHexString(),
+                      granter.getBalance().toQuantityHexString())));
+        }
+      }
+
+      Wei previousBalance;
+      if (isGranted) {
+        // deducted balance from granter account.
+        previousBalance = granter.decrementBalance(upfrontGasCost);
+
+        LOG.trace(
+            "Deducted granter {} upfront gas cost {} ({} -> {})",
+            granterAddress,
+            upfrontGasCost,
+            previousBalance,
+            granter.getBalance());
+      } else {
+        // deducted balance from sender account.
+        previousBalance = sender.decrementBalance(upfrontGasCost);
+
+        LOG.trace(
+            "Deducted sender {} upfront gas cost {} ({} -> {})",
+            senderAddress,
+            upfrontGasCost,
+            previousBalance,
+            sender.getBalance());
+      }
 
       long codeDelegationRefund = 0L;
       if (transaction.getCodeDelegationList().isPresent()) {
@@ -484,10 +590,11 @@ public class MainnetTransactionProcessor {
           validationResult =
               ValidationResult.invalid(
                   TransactionInvalidReason.EXECUTION_HALTED,
-                  initialFrame.getExceptionalHaltReason().get().toString());
+                  initialFrame.getExceptionalHaltReason().get().getDescription());
         }
       }
 
+      // TODO SLD are the log correct following EIP-7623?
       if (LOG.isTraceEnabled()) {
         LOG.trace(
             "Gas used by transaction: {}, by message call/contract creation: {}",
@@ -500,15 +607,31 @@ public class MainnetTransactionProcessor {
       final long refundedGas =
           gasCalculator.calculateGasRefund(transaction, initialFrame, codeDelegationRefund);
       final Wei refundedWei = transactionGasPrice.multiply(refundedGas);
-      final Wei balancePriorToRefund = sender.getBalance();
-      sender.incrementBalance(refundedWei);
-      LOG.atTrace()
-          .setMessage("refunded sender {}  {} wei ({} -> {})")
-          .addArgument(senderAddress)
-          .addArgument(refundedWei)
-          .addArgument(balancePriorToRefund)
-          .addArgument(sender.getBalance())
-          .log();
+
+      // Refund the granter if the transaction is fee grant transaction.
+      Wei balancePriorToRefund;
+      if (isGranted) {
+        balancePriorToRefund = granter.getBalance();
+        granter.incrementBalance(refundedWei);
+        LOG.atTrace()
+            .setMessage("refunded granter {}  {} wei ({} -> {})")
+            .addArgument(granterAddress)
+            .addArgument(refundedWei)
+            .addArgument(balancePriorToRefund)
+            .addArgument(sender.getBalance())
+            .log();
+      } else {
+        balancePriorToRefund = sender.getBalance();
+        sender.incrementBalance(refundedWei);
+        LOG.atTrace()
+            .setMessage("refunded sender {}  {} wei ({} -> {})")
+            .addArgument(senderAddress)
+            .addArgument(refundedWei)
+            .addArgument(balancePriorToRefund)
+            .addArgument(sender.getBalance())
+            .log();
+      }
+
       final long gasUsedByTransaction = transaction.getGasLimit() - initialFrame.getRemainingGas();
 
       // update the coinbase
@@ -575,6 +698,21 @@ public class MainnetTransactionProcessor {
             coinbase.incrementBalance(fee);
             treasury.incrementBalance(fee);
           }
+        }
+      }
+
+      // Check if granted transaction then update latest transaction.
+      if (isGranted) {
+        if (isPeriodic) {
+          if (latestTransaction.add(period).compareTo(periodReset) < 0) {
+            periodCanSpend = periodLimit.subtract(coinbaseWeiDelta);
+          } else {
+            periodCanSpend = periodCanSpend.subtract(coinbaseWeiDelta);
+          }
+          feeGrant.setStorageValue(
+              rootStorageSlot.add(4L), UInt256.fromHexString(periodCanSpend.toHexString()));
+          feeGrant.setStorageValue(
+              rootStorageSlot.add(7L), UInt256.valueOf(blockHeader.getNumber()));
         }
       }
 
@@ -697,6 +835,12 @@ public class MainnetTransactionProcessor {
   private Bytes getStorageAtFromRevenueRatio(final WorldUpdater worldUpdater, final long slot) {
     final MutableAccount revenueRatio = worldUpdater.getOrCreate(Address.REVENUE_RATIO);
     return revenueRatio.getStorageValue(UInt256.valueOf(slot));
+  }
+
+  private UInt256 getRootSlotOfGasFeeGrant(final Address sender, final Address program) {
+    final Bytes32 root = Hash.keccak256(Bytes.concatenate(PRECOMPILE_STORAGE_SLOT, sender));
+    final Bytes32 slot = Hash.keccak256(Bytes.concatenate(root, program));
+    return UInt256.fromBytes(slot);
   }
 
   public static Builder builder() {

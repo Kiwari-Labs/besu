@@ -16,17 +16,21 @@ package org.hyperledger.besu.cli;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.hyperledger.besu.cli.config.NetworkName.CLASSIC;
 import static org.hyperledger.besu.cli.config.NetworkName.DEV;
 import static org.hyperledger.besu.cli.config.NetworkName.EPHEMERY;
 import static org.hyperledger.besu.cli.config.NetworkName.EXPERIMENTAL_EIPS;
 import static org.hyperledger.besu.cli.config.NetworkName.FUTURE_EIPS;
 import static org.hyperledger.besu.cli.config.NetworkName.HOLESKY;
+import static org.hyperledger.besu.cli.config.NetworkName.HOODI;
 import static org.hyperledger.besu.cli.config.NetworkName.LUKSO;
 import static org.hyperledger.besu.cli.config.NetworkName.MAINNET;
 import static org.hyperledger.besu.cli.config.NetworkName.MORDOR;
 import static org.hyperledger.besu.cli.config.NetworkName.SEPOLIA;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.RpcApis.ENGINE;
+import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.HOODI_BOOTSTRAP_NODES;
 import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.MAINNET_BOOTSTRAP_NODES;
 import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.MAINNET_DISCOVERY_URL;
 import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.SEPOLIA_BOOTSTRAP_NODES;
@@ -40,18 +44,21 @@ import static org.mockito.ArgumentMatchers.isNotNull;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.BesuInfo;
 import org.hyperledger.besu.cli.config.EthNetworkConfig;
+import org.hyperledger.besu.cli.config.NativeRequirement.NativeRequirementResult;
 import org.hyperledger.besu.cli.config.NetworkName;
 import org.hyperledger.besu.config.GenesisConfig;
 import org.hyperledger.besu.config.MergeConfiguration;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
-import org.hyperledger.besu.ethereum.GasLimitCalculator;
 import org.hyperledger.besu.ethereum.api.ApiConfiguration;
 import org.hyperledger.besu.ethereum.api.ImmutableApiConfiguration;
 import org.hyperledger.besu.ethereum.api.graphql.GraphQLConfiguration;
@@ -283,7 +290,6 @@ public class BesuCommandTest extends CommandTestAbstract {
     verify(mockControllerBuilder).miningParameters(miningArg.capture());
     verify(mockControllerBuilder).nodeKey(isNotNull());
     verify(mockControllerBuilder).storageProvider(storageProviderArgumentCaptor.capture());
-    verify(mockControllerBuilder).gasLimitCalculator(eq(GasLimitCalculator.constant()));
     verify(mockControllerBuilder).maxPeers(eq(maxPeers));
     verify(mockControllerBuilder).maxRemotelyInitiatedPeers(eq((int) Math.floor(0.6 * maxPeers)));
     verify(mockControllerBuilder).build();
@@ -497,17 +503,19 @@ public class BesuCommandTest extends CommandTestAbstract {
   public void testGenesisPathMainnetEthConfig() {
     final ArgumentCaptor<EthNetworkConfig> networkArg =
         ArgumentCaptor.forClass(EthNetworkConfig.class);
+    final ArgumentCaptor<MiningConfiguration> miningArg =
+        ArgumentCaptor.forClass(MiningConfiguration.class);
 
     parseCommand("--network", "mainnet");
 
     verify(mockControllerBuilderFactory).fromEthNetworkConfig(networkArg.capture(), any());
+    verify(mockControllerBuilder).miningParameters(miningArg.capture());
     verify(mockControllerBuilder).build();
 
     final EthNetworkConfig config = networkArg.getValue();
     assertThat(config.bootNodes()).isEqualTo(MAINNET_BOOTSTRAP_NODES);
     assertThat(config.dnsDiscoveryUrl()).isEqualTo(MAINNET_DISCOVERY_URL);
     assertThat(config.networkId()).isEqualTo(BigInteger.valueOf(1));
-
     verify(mockLogger, never()).warn(contains("Mainnet is deprecated and will be shutdown"));
   }
 
@@ -525,6 +533,22 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(config.bootNodes()).isEqualTo(SEPOLIA_BOOTSTRAP_NODES);
     assertThat(config.dnsDiscoveryUrl()).isEqualTo(SEPOLIA_DISCOVERY_URL);
     assertThat(config.networkId()).isEqualTo(BigInteger.valueOf(11155111));
+  }
+
+  @Test
+  public void testGenesisPathHoodiEthConfig() {
+    final ArgumentCaptor<EthNetworkConfig> networkArg =
+        ArgumentCaptor.forClass(EthNetworkConfig.class);
+
+    parseCommand("--network", "hoodi");
+
+    verify(mockControllerBuilderFactory).fromEthNetworkConfig(networkArg.capture(), any());
+    verify(mockControllerBuilder).build();
+
+    final EthNetworkConfig config = networkArg.getValue();
+    assertThat(config.bootNodes()).isEqualTo(HOODI_BOOTSTRAP_NODES);
+    assertThat(config.dnsDiscoveryUrl()).isNull();
+    assertThat(config.networkId()).isEqualTo(BigInteger.valueOf(560048));
   }
 
   @Test
@@ -1774,16 +1798,42 @@ public class BesuCommandTest extends CommandTestAbstract {
 
     final ArgumentCaptor<EthNetworkConfig> networkArg =
         ArgumentCaptor.forClass(EthNetworkConfig.class);
+    final ArgumentCaptor<MiningConfiguration> miningArg =
+        ArgumentCaptor.forClass(MiningConfiguration.class);
 
     verify(mockControllerBuilderFactory).fromEthNetworkConfig(networkArg.capture(), any());
+    verify(mockControllerBuilder).miningParameters(miningArg.capture());
     verify(mockControllerBuilder).build();
 
     assertThat(networkArg.getValue()).isEqualTo(EthNetworkConfig.getNetworkConfig(SEPOLIA));
 
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
+    assertThat(miningArg.getValue().getTargetGasLimit()).isEmpty();
 
     verify(mockLogger, never()).warn(contains("Sepolia is deprecated and will be shutdown"));
+  }
+
+  @Test
+  public void hoodiValuesAreUsed() {
+    parseCommand("--network", "hoodi");
+
+    final ArgumentCaptor<EthNetworkConfig> networkArg =
+        ArgumentCaptor.forClass(EthNetworkConfig.class);
+    final ArgumentCaptor<MiningConfiguration> miningArg =
+        ArgumentCaptor.forClass(MiningConfiguration.class);
+
+    verify(mockControllerBuilderFactory).fromEthNetworkConfig(networkArg.capture(), any());
+    verify(mockControllerBuilder).miningParameters(miningArg.capture());
+    verify(mockControllerBuilder).build();
+
+    assertThat(networkArg.getValue()).isEqualTo(EthNetworkConfig.getNetworkConfig(HOODI));
+
+    assertThat(commandOutput.toString(UTF_8)).isEmpty();
+    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
+    assertThat(miningArg.getValue().getTargetGasLimit()).isEmpty();
+
+    verify(mockLogger, never()).warn(contains("Hoodi is deprecated and will be shutdown"));
   }
 
   @Test
@@ -1792,14 +1842,18 @@ public class BesuCommandTest extends CommandTestAbstract {
 
     final ArgumentCaptor<EthNetworkConfig> networkArg =
         ArgumentCaptor.forClass(EthNetworkConfig.class);
+    final ArgumentCaptor<MiningConfiguration> miningArg =
+        ArgumentCaptor.forClass(MiningConfiguration.class);
 
     verify(mockControllerBuilderFactory).fromEthNetworkConfig(networkArg.capture(), any());
+    verify(mockControllerBuilder).miningParameters(miningArg.capture());
     verify(mockControllerBuilder).build();
 
     assertThat(networkArg.getValue()).isEqualTo(EthNetworkConfig.getNetworkConfig(HOLESKY));
 
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
+    assertThat(miningArg.getValue().getTargetGasLimit()).isEmpty();
 
     verify(mockLogger, never()).warn(contains("Holesky is deprecated and will be shutdown"));
   }
@@ -1823,8 +1877,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(miningArg.getValue().getCoinbase()).isEqualTo(Optional.empty());
     assertThat(miningArg.getValue().getMinTransactionGasPrice()).isEqualTo(Wei.of(1000));
     assertThat(miningArg.getValue().getExtraData()).isEqualTo(Bytes.EMPTY);
-    assertThat(miningArg.getValue().getTargetGasLimit().getAsLong())
-        .isEqualTo(MiningConfiguration.DEFAULT_TARGET_GAS_LIMIT_HOLESKY);
+    assertThat(miningArg.getValue().getTargetGasLimit()).isEmpty();
 
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
@@ -1921,6 +1974,11 @@ public class BesuCommandTest extends CommandTestAbstract {
   @Test
   public void sepoliaValuesCanBeOverridden() {
     networkValuesCanBeOverridden("sepolia");
+  }
+
+  @Test
+  public void hoodiValuesCanBeOverridden() {
+    networkValuesCanBeOverridden("hoodi");
   }
 
   @Test
@@ -2512,6 +2570,46 @@ public class BesuCommandTest extends CommandTestAbstract {
   }
 
   @Test
+  public void assertUnnamedNetworkNativeRequirements_Met() throws IOException {
+    final Path genesisFile =
+        createFakeGenesisFile(new JsonObject().put("config", new JsonObject()));
+    parseCommand("--genesis-file", genesisFile.toString());
+
+    assertThat(commandOutput.toString(UTF_8)).isEmpty();
+    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
+  }
+
+  @Test
+  public void assertNativeRequirements_UnMet() throws IOException {
+    BesuCommand mockCmd = parseCommand("--network=mainnet");
+    NetworkName spyMainnet = spy(NetworkName.MAINNET);
+    when(spyMainnet.getNativeRequirements())
+        .thenReturn(
+            List.of(new NativeRequirementResult(false, "MOCKLIB", Optional.of("Mock error"))));
+    assertThatExceptionOfType(UnsupportedOperationException.class)
+        .isThrownBy(() -> mockCmd.checkRequiredNativeLibraries(spyMainnet))
+        .withMessageContaining("MOCKLIB")
+        .withMessageContaining("Mock error")
+        .withMessageContaining(System.getProperty("os.arch"))
+        .withMessageContaining(System.getProperty("os.name"));
+  }
+
+  @Test
+  public void assertNativeRequirements_UnMetForUnnamedNetwork() throws IOException {
+    final Path fakeGenesisFile = createFakeGenesisFile(GENESIS_VALID_JSON);
+    BesuCommand mockCmd = parseCommand("--genesis-file=" + fakeGenesisFile.toString());
+    NetworkName spyMainnet = spy(NetworkName.MAINNET);
+    // assert no error output
+    assertThat(commandOutput.toString(UTF_8)).isEmpty();
+    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
+
+    // assert no exception
+    assertThatNoException().isThrownBy(() -> mockCmd.configureNativeLibs(Optional.of(spyMainnet)));
+    // assert we didn't check for native requirements for a custom-genesis
+    verify(spyMainnet, times(0)).getNativeRequirements();
+  }
+
+  @Test
   public void bonsaiFlatDbShouldBeEnabledByDefault() {
     final TestBesuCommand besuCommand = parseCommand();
     assertThat(
@@ -2597,5 +2695,92 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(commandOutputString).doesNotContain("$DEFAULT-VALUE");
 
     assertThat(errorOutputString).isEmpty();
+  }
+
+  @Test
+  void chainPruningEnabledWithPOAShouldFailWhenChainPruningBlocksRetainedValueLessThanEpochLength()
+      throws IOException {
+    JsonObject genesis = GENESIS_VALID_JSON;
+
+    // for QBFT
+    genesis.getJsonObject("config").put("qbft", new JsonObject().put("epochlength", 25000));
+    final Path genesisFileQBFT = createFakeGenesisFile(genesis);
+    parseCommand(
+        "--genesis-file",
+        genesisFileQBFT.toString(),
+        "--Xchain-pruning-enabled=true",
+        "--Xchain-pruning-blocks-retained=7200",
+        "--version-compatibility-protection=false");
+    assertThat(commandErrorOutput.toString(UTF_8))
+        .contains("--Xchain-pruning-blocks-retained(7200) must be >= epochlength(25000) for QBFT");
+    commandErrorOutput.reset();
+
+    // for IBFT2
+    genesis.getJsonObject("config").put("ibft2", new JsonObject().put("epochlength", 20000));
+    genesis.getJsonObject("config").remove("qbft");
+    final Path genesisFileIBFT = createFakeGenesisFile(genesis);
+    parseCommand(
+        "--genesis-file",
+        genesisFileIBFT.toString(),
+        "--Xchain-pruning-enabled=true",
+        "--Xchain-pruning-blocks-retained=7200",
+        "--version-compatibility-protection=false");
+    assertThat(commandErrorOutput.toString(UTF_8))
+        .contains("--Xchain-pruning-blocks-retained(7200) must be >= epochlength(20000) for IBFT2");
+    commandErrorOutput.reset();
+
+    // for Clique
+    genesis.getJsonObject("config").put("clique", new JsonObject().put("epochlength", 10000));
+    genesis.getJsonObject("config").remove("ibft2");
+    final Path genesisFileClique = createFakeGenesisFile(genesis);
+    parseCommand(
+        "--genesis-file",
+        genesisFileClique.toString(),
+        "--Xchain-pruning-enabled=true",
+        "--Xchain-pruning-blocks-retained=7200",
+        "--version-compatibility-protection=false");
+    assertThat(commandErrorOutput.toString(UTF_8))
+        .contains(
+            "--Xchain-pruning-blocks-retained(7200) must be >= epochlength(10000) for Clique");
+  }
+
+  @Test
+  void chainPruningEnabledWithPOA() throws IOException {
+    JsonObject genesis = GENESIS_VALID_JSON;
+    // for QBFT
+    genesis.getJsonObject("config").put("qbft", new JsonObject().put("epochlength", 25000));
+    final Path genesisFileForQBFT = createFakeGenesisFile(genesis);
+    parseCommand(
+        "--genesis-file",
+        genesisFileForQBFT.toString(),
+        "--Xchain-pruning-enabled=true",
+        "--Xchain-pruning-blocks-retained=25000",
+        "--version-compatibility-protection=false");
+    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
+
+    // for IBFT2
+    genesis.getJsonObject("config").put("ibft2", new JsonObject().put("epochlength", 20000));
+    genesis.getJsonObject("config").remove("qbft");
+    final Path genesisFileIBFT = createFakeGenesisFile(genesis);
+    parseCommand(
+        "--genesis-file",
+        genesisFileIBFT.toString(),
+        "--Xchain-pruning-enabled=true",
+        "--Xchain-pruning-blocks-retained=20000",
+        "--version-compatibility-protection=false");
+
+    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
+
+    // for Clique
+    genesis.getJsonObject("config").put("clique", new JsonObject().put("epochlength", 10000));
+    genesis.getJsonObject("config").remove("ibft2");
+    final Path genesisFileClique = createFakeGenesisFile(genesis);
+    parseCommand(
+        "--genesis-file",
+        genesisFileClique.toString(),
+        "--Xchain-pruning-enabled=true",
+        "--Xchain-pruning-blocks-retained=10000",
+        "--version-compatibility-protection=false");
+    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
   }
 }

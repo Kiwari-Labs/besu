@@ -109,8 +109,11 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
       return FALSE;
     } else {
       final UInt256 initialOwner = UInt256.fromBytes(calldata);
-      if (initialOwner.equals(UInt256.ZERO)) {
+      if (initialOwner.isZero()) {
         return FALSE;
+      }
+      if (contract.getNonce() == 0L) {
+        contract.incrementNonce();
       }
       contract.setStorageValue(OWNER_SLOT, initialOwner);
       contract.setStorageValue(INIT_SLOT, UInt256.ONE);
@@ -120,11 +123,11 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
 
   private Bytes transferOwnership(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       final UInt256 newOwner = UInt256.fromBytes(calldata);
-      if (newOwner.equals(UInt256.ZERO)) {
+      if (newOwner.isZero()) {
         return FALSE;
       }
       contract.setStorageValue(OWNER_SLOT, newOwner);
@@ -135,7 +138,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
   private Bytes contains(final MutableAccount contract, final Bytes calldata) {
     final Address address = Address.wrap(calldata.slice(12, 20));
     final UInt256 slot = storageSlot(address);
-    if (contract.getStorageValue(slot).equals(FALSE)) {
+    if (contract.getStorageValue(slot).isZero()) {
       return FALSE;
     } else {
       return TRUE;
@@ -149,7 +152,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
 
   private Bytes addToRegistry(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       final UInt256 slot = storageSlot(Address.wrap(calldata.slice(12, 20)));
@@ -160,7 +163,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
 
   private Bytes removeFromRegistry(
       final MutableAccount contract, final Address senderAddress, final Bytes calldata) {
-    if (onlyOwner(contract, senderAddress).equals(FALSE)) {
+    if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
       final UInt256 slot = storageSlot(Address.wrap(calldata.slice(12, 20)));

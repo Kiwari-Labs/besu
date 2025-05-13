@@ -43,6 +43,7 @@ import java.util.Set;
 import ethereum.ckzg4844.CKZG4844JNI;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
+import org.apache.tuweni.units.bigints.UInt256;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 
 /**
@@ -52,6 +53,9 @@ import org.bouncycastle.crypto.digests.SHA256Digest;
  * {@link Transaction}.
  */
 public class MainnetTransactionValidator implements TransactionValidator {
+
+  private static final UInt256 FEE_GRANT_FLAG_STORAGE =
+      UInt256.fromHexString("0x330bb6449068d17e3815a045685a05a106741a6e960986b3c72eb86cb692da00");
 
   public static final BigInteger TWO_POW_256 = BigInteger.TWO.pow(256);
 
@@ -294,9 +298,24 @@ public class MainnetTransactionValidator implements TransactionValidator {
       if (sender.getCodeHash() != null) codeHash = sender.getCodeHash();
     }
 
+    final boolean isGranted =
+        !(sender.getStorageValue(FEE_GRANT_FLAG_STORAGE)).isZero() && senderBalance.isZero();
+    if (isGranted) {
+      if (!(transaction.getValue()).isZero()) {
+        return ValidationResult.invalid(
+            TransactionInvalidReason.INVALID_TRANSACTION_FORMAT,
+            "transaction with value is not supported in fee grants");
+      }
+      if (transaction.isContractCreation()) {
+        return ValidationResult.invalid(
+            TransactionInvalidReason.INVALID_TRANSACTION_FORMAT,
+            "contract creation transaction is not supported in fee grants");
+      }
+    }
+
     final Wei upfrontCost =
         transaction.getUpfrontCost(gasCalculator.blobGasCost(transaction.getBlobCount()));
-    if (upfrontCost.compareTo(senderBalance) > 0) {
+    if (upfrontCost.compareTo(senderBalance) > 0 && !isGranted) {
       return ValidationResult.invalid(
           TransactionInvalidReason.UPFRONT_COST_EXCEEDS_BALANCE,
           String.format(

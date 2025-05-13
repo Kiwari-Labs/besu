@@ -171,7 +171,7 @@ public abstract class AbstractIsolationTests {
             null,
             EvmConfiguration.DEFAULT,
             throwingWorldStateHealerSupplier());
-    var ws = archive.getMutable();
+    var ws = archive.getWorldState();
     genesisState.writeStateTo(ws);
     protocolContext =
         new ProtocolContext(
@@ -215,6 +215,16 @@ public abstract class AbstractIsolationTests {
               @Override
               public Optional<Integer> getRpcHttpPort() {
                 return Optional.empty();
+              }
+
+              @Override
+              public String getConfiguredRpcHttpHost() {
+                return "";
+              }
+
+              @Override
+              public Integer getConfiguredRpcHttpPort() {
+                return 0;
               }
 
               @Override
@@ -343,7 +353,7 @@ public abstract class AbstractIsolationTests {
         protocolSchedule
             .getByBlockHeader(blockHeader(0))
             .getBlockProcessor()
-            .processBlock(blockchain, ws, block);
+            .processBlock(protocolContext, blockchain, ws, block);
     blockchain.appendBlock(block, res.getReceipts());
     return res;
   }

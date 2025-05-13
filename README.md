@@ -13,12 +13,13 @@ Besu is an Apache 2.0 licensed, MainNet compatible, Ethereum client written in J
 
 ## Additional Feature differ form original Besu
 
-- Enables control of the `runtime` through a stateful precompiled contract, including components such as `NativeMinter`, `AddressRegistry`, `GasPrice`, `RevenueRatio`, and `TreasuryRegistry`.
-- `NativeMinter` Facilitates on-chain minting of the native token.  
-- `AddressRegistry` A general-purpose address registry, usable for shared whitelists or blacklists.  
-- `GasPrice` Enables remote configuration of the minimum `gasPrice`, applied uniformly across all nodes.  
-- `RevenueRatio` Configures the reward ratio for distributing transaction fees.  
+- Enables control of the `runtime` through the stateful precompiled contract, including components such as `NativeMinter`, `AddressRegistry`, `GasPrice`, `RevenueRatio`, `TreasuryRegistry` and `GasFeeGrant`.
+- `NativeMinter` Facilitates on-chain minting of the native token.
+- `AddressRegistry` A general-purpose address registry, usable for shared whitelists or blacklists.
+- `GasPrice` Enables remote configuration of the minimum `gasPrice`, applied uniformly across all nodes.
+- `RevenueRatio` Configures the reward ratio for distributing transaction fees.
 - `TreasuryRegistry` Manages the treasury address used for distributing rewards to the treasury.  
+- `GasFeeGrant` Allows designated accounts to cover gas fees on behalf of others. This feature supports various grant types, including basic and periodic allowances, enabling flexible fee sponsorship mechanisms.
 
 ## Useful Links
 

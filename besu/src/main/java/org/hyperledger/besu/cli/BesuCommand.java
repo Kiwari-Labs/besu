@@ -26,15 +26,16 @@ import static org.hyperledger.besu.cli.util.CommandLineUtils.DEPENDENCY_WARNING_
 import static org.hyperledger.besu.cli.util.CommandLineUtils.isOptionSet;
 import static org.hyperledger.besu.controller.BesuController.DATABASE_PATH;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.authentication.EngineAuthService.EPHEMERAL_JWT_FILE;
-import static org.hyperledger.besu.nat.kubernetes.KubernetesNatManager.DEFAULT_BESU_SERVICE_NAME_FILTER;
 
 import org.hyperledger.besu.BesuInfo;
 import org.hyperledger.besu.Runner;
 import org.hyperledger.besu.RunnerBuilder;
 import org.hyperledger.besu.chainexport.RlpBlockExporter;
+import org.hyperledger.besu.chainimport.Era1BlockImporter;
 import org.hyperledger.besu.chainimport.JsonBlockImporter;
 import org.hyperledger.besu.chainimport.RlpBlockImporter;
 import org.hyperledger.besu.cli.config.EthNetworkConfig;
+import org.hyperledger.besu.cli.config.NativeRequirement.NativeRequirementResult;
 import org.hyperledger.besu.cli.config.NetworkName;
 import org.hyperledger.besu.cli.config.ProfilesCompletionCandidates;
 import org.hyperledger.besu.cli.custom.JsonRPCAllowlistHostsProperty;
@@ -69,6 +70,7 @@ import org.hyperledger.besu.cli.options.SynchronizerOptions;
 import org.hyperledger.besu.cli.options.TransactionPoolOptions;
 import org.hyperledger.besu.cli.options.storage.DataStorageOptions;
 import org.hyperledger.besu.cli.options.storage.DiffBasedSubStorageOptions;
+import org.hyperledger.besu.cli.options.unstable.QBFTOptions;
 import org.hyperledger.besu.cli.presynctasks.PreSynchronizationTaskRunner;
 import org.hyperledger.besu.cli.presynctasks.PrivateDatabaseMigrationPreSyncTask;
 import org.hyperledger.besu.cli.subcommands.PasswordSubCommand;
@@ -101,7 +103,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.enclave.EnclaveFactory;
-import org.hyperledger.besu.ethereum.GasLimitCalculator;
 import org.hyperledger.besu.ethereum.api.ApiConfiguration;
 import org.hyperledger.besu.ethereum.api.graphql.GraphQLConfiguration;
 import org.hyperledger.besu.ethereum.api.jsonrpc.InProcessRpcConfiguration;
@@ -120,7 +121,6 @@ import org.hyperledger.besu.ethereum.eth.sync.SyncMode;
 import org.hyperledger.besu.ethereum.eth.sync.SynchronizerConfiguration;
 import org.hyperledger.besu.ethereum.eth.transactions.ImmutableTransactionPoolConfiguration;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration;
-import org.hyperledger.besu.ethereum.mainnet.FrontierTargetingGasLimitCalculator;
 import org.hyperledger.besu.ethereum.p2p.config.DiscoveryConfiguration;
 import org.hyperledger.besu.ethereum.p2p.discovery.P2PDiscoveryConfiguration;
 import org.hyperledger.besu.ethereum.p2p.peers.EnodeDnsConfiguration;
@@ -278,7 +278,6 @@ import picocli.CommandLine.ParameterException;
       "%nMore info and other profiles at https://besu.hyperledger.org%n"
     })
 public class BesuCommand implements DefaultCommandValues, Runnable {
-
   @SuppressWarnings("PrivateStaticFinalLoggers")
   // non-static for testing
   private final Logger logger;
@@ -287,6 +286,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
 
   private final Supplier<RlpBlockImporter> rlpBlockImporter;
   private final Function<BesuController, JsonBlockImporter> jsonBlockImporterFactory;
+  private final Supplier<Era1BlockImporter> era1BlockImporter;
   private final Function<Blockchain, RlpBlockExporter> rlpBlockExporterFactory;
 
   // Unstable CLI options
@@ -301,6 +301,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
   private final EvmOptions unstableEvmOptions = EvmOptions.create();
   private final IpcOptions unstableIpcOptions = IpcOptions.create();
   private final ChainPruningOptions unstableChainPruningOptions = ChainPruningOptions.create();
+  private final QBFTOptions unstableQbftOptions = QBFTOptions.create();
 
   // stable CLI options
   final DataStorageOptions dataStorageOptions = DataStorageOptions.create();
@@ -692,7 +693,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
   @CommandLine.Option(
       names = {"--cache-last-blocks"},
       description = "Specifies the number of last blocks to cache  (default: ${DEFAULT-VALUE})")
-  private final Integer numberOfblocksToCache = 0;
+  private final Integer numberOfBlocksToCache = 0;
 
   // Plugins Configuration Option Group
   @CommandLine.ArgGroup(validate = false)
@@ -721,6 +722,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
    *
    * @param rlpBlockImporter RlpBlockImporter supplier
    * @param jsonBlockImporterFactory instance of {@code Function<BesuController, JsonBlockImporter>}
+   * @param era1BlockImporter Era1BlockImporter supplier
    * @param rlpBlockExporterFactory instance of {@code Function<Blockchain, RlpBlockExporter>}
    * @param runnerBuilder instance of RunnerBuilder
    * @param controllerBuilder instance of BesuController.Builder
@@ -731,6 +733,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
   public BesuCommand(
       final Supplier<RlpBlockImporter> rlpBlockImporter,
       final Function<BesuController, JsonBlockImporter> jsonBlockImporterFactory,
+      final Supplier<Era1BlockImporter> era1BlockImporter,
       final Function<Blockchain, RlpBlockExporter> rlpBlockExporterFactory,
       final RunnerBuilder runnerBuilder,
       final BesuController.Builder controllerBuilder,
@@ -740,6 +743,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     this(
         rlpBlockImporter,
         jsonBlockImporterFactory,
+        era1BlockImporter,
         rlpBlockExporterFactory,
         runnerBuilder,
         controllerBuilder,
@@ -762,6 +766,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
    *
    * @param rlpBlockImporter RlpBlockImporter supplier
    * @param jsonBlockImporterFactory instance of {@code Function<BesuController, JsonBlockImporter>}
+   * @param era1BlockImporter Era1BlockImporter supplier
    * @param rlpBlockExporterFactory instance of {@code Function<Blockchain, RlpBlockExporter>}
    * @param runnerBuilder instance of RunnerBuilder
    * @param controllerBuilder instance of BesuController.Builder
@@ -782,6 +787,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
   protected BesuCommand(
       final Supplier<RlpBlockImporter> rlpBlockImporter,
       final Function<BesuController, JsonBlockImporter> jsonBlockImporterFactory,
+      final Supplier<Era1BlockImporter> era1BlockImporter,
       final Function<Blockchain, RlpBlockExporter> rlpBlockExporterFactory,
       final RunnerBuilder runnerBuilder,
       final BesuController.Builder controllerBuilder,
@@ -800,8 +806,9 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
 
     this.logger = commandLogger;
     this.rlpBlockImporter = rlpBlockImporter;
-    this.rlpBlockExporterFactory = rlpBlockExporterFactory;
     this.jsonBlockImporterFactory = jsonBlockImporterFactory;
+    this.era1BlockImporter = era1BlockImporter;
+    this.rlpBlockExporterFactory = rlpBlockExporterFactory;
     this.runnerBuilder = runnerBuilder;
     this.controllerBuilder = controllerBuilder;
     this.besuPluginContext = besuPluginContext;
@@ -968,7 +975,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
       // explicitly enabled, perform compatibility check
       VersionMetadata.versionCompatibilityChecks(versionCompatibilityProtection, dataDir());
 
-      configureNativeLibs();
+      configureNativeLibs(Optional.ofNullable(network));
       besuController = buildController();
 
       besuPluginContext.beforeExternalServices();
@@ -988,7 +995,8 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
       runner.awaitStop();
 
     } catch (final Exception e) {
-      logger.error("Failed to start Besu", e);
+      logger.error("Failed to start Besu: {}", e.getMessage());
+      logger.debug("Startup failure cause", e);
       throw new ParameterException(this.commandLine, e.getMessage(), e);
     }
   }
@@ -1102,6 +1110,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
         new BlocksSubCommand(
             rlpBlockImporter,
             jsonBlockImporterFactory,
+            era1BlockImporter,
             rlpBlockExporterFactory,
             commandLine.getOut()));
     commandLine.addSubcommand(
@@ -1162,6 +1171,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
             .put("EVM Options", unstableEvmOptions)
             .put("IPC Options", unstableIpcOptions)
             .put("Chain Data Pruning Options", unstableChainPruningOptions)
+            .put("QBFT Options", unstableQbftOptions)
             .build();
 
     UnstableOptionsSubCommand.createUnstableOptions(commandLine, unstableOptions);
@@ -1380,7 +1390,8 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     return Optional.ofNullable(colorEnabled);
   }
 
-  private void configureNativeLibs() {
+  @VisibleForTesting
+  void configureNativeLibs(final Optional<NetworkName> configuredNetwork) {
     if (unstableNativeLibraryOptions.getNativeAltbn128()
         && AbstractAltBnPrecompiledContract.maybeEnableNative()) {
       logger.info("Using the native implementation of alt bn128");
@@ -1427,6 +1438,37 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
           this.commandLine,
           "--kzg-trusted-setup can only be specified on networks with data blobs enabled");
     }
+    // assert required native libraries have been loaded
+    if (genesisFile == null && configuredNetwork.isPresent()) {
+      checkRequiredNativeLibraries(configuredNetwork.get());
+    }
+  }
+
+  @VisibleForTesting
+  void checkRequiredNativeLibraries(final NetworkName configuredNetwork) {
+    if (configuredNetwork == null) {
+      return;
+    }
+
+    // assert native library requirements for named networks:
+    List<NativeRequirementResult> failedNativeReqs =
+        configuredNetwork.getNativeRequirements().stream().filter(r -> !r.present()).toList();
+
+    if (!failedNativeReqs.isEmpty()) {
+      String failures =
+          failedNativeReqs.stream()
+              .map(r -> r.libname() + " " + r.errorMessage())
+              .collect(Collectors.joining("\n\t"));
+      throw new UnsupportedOperationException(
+          String.format(
+              "Failed to load required native libraries for network %s. "
+                  + "Verify whether your platform %s and arch %s are supported by besu. "
+                  + "Failures loading: \n%s",
+              configuredNetwork.name(),
+              System.getProperty("os.name"),
+              System.getProperty("os.arch"),
+              failures));
+    }
   }
 
   private void validateOptions() {
@@ -1444,25 +1486,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     validateTransactionPoolOptions();
     validateDataStorageOptions();
     validateGraphQlOptions();
-    validateConsensusSyncCompatibilityOptions();
     validatePluginOptions();
-  }
-
-  private void validateConsensusSyncCompatibilityOptions() {
-    // snap and checkpoint are experimental for BFT
-    if ((genesisConfigOptionsSupplier.get().isIbftLegacy()
-            || genesisConfigOptionsSupplier.get().isIbft2()
-            || genesisConfigOptionsSupplier.get().isQbft())
-        && !unstableSynchronizerOptions.isSnapSyncBftEnabled()) {
-      final String errorSuffix = "can't be used with BFT networks";
-      if (SyncMode.CHECKPOINT.equals(syncMode)) {
-        throw new ParameterException(
-            commandLine, String.format("%s %s", "Checkpoint sync", errorSuffix));
-      }
-      if (syncMode == SyncMode.SNAP) {
-        throw new ParameterException(commandLine, String.format("%s %s", "Snap sync", errorSuffix));
-      }
-    }
   }
 
   private void validatePluginOptions() {
@@ -1506,22 +1530,6 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
 
   @SuppressWarnings("ConstantConditions")
   private void validateNatParams() {
-    if (natMethod.equals(NatMethod.KUBERNETES)) {
-      logger.warn("Kubernetes NAT method is deprecated. Please use Docker or UPNP");
-    }
-    if (!unstableNatOptions.getNatManagerServiceName().equals(DEFAULT_BESU_SERVICE_NAME_FILTER)) {
-      logger.warn(
-          "`--Xnat-kube-service-name` and Kubernetes NAT method are deprecated. Please use Docker or UPNP");
-    }
-    if (!(natMethod.equals(NatMethod.AUTO) || natMethod.equals(NatMethod.KUBERNETES))
-        && !unstableNatOptions
-            .getNatManagerServiceName()
-            .equals(DEFAULT_BESU_SERVICE_NAME_FILTER)) {
-      throw new ParameterException(
-          this.commandLine,
-          "The `--Xnat-kube-service-name` parameter is only used in kubernetes mode. Either remove --Xnat-kube-service-name"
-              + " or select the KUBERNETES mode (via --nat--method=KUBERNETES)");
-    }
     if (natMethod.equals(NatMethod.AUTO) && !unstableNatOptions.getNatMethodFallbackEnabled()) {
       throw new ParameterException(
           this.commandLine,
@@ -1584,13 +1592,37 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
   }
 
   private void validateChainDataPruningParams() {
-    if (unstableChainPruningOptions.getChainDataPruningEnabled()
-        && unstableChainPruningOptions.getChainDataPruningBlocksRetained()
-            < unstableChainPruningOptions.getChainDataPruningBlocksRetainedLimit()) {
-      throw new ParameterException(
-          this.commandLine,
-          "--Xchain-pruning-blocks-retained must be >= "
-              + unstableChainPruningOptions.getChainDataPruningBlocksRetainedLimit());
+    Long chainDataPruningBlocksRetained =
+        unstableChainPruningOptions.getChainDataPruningBlocksRetained();
+    if (unstableChainPruningOptions.getChainDataPruningEnabled()) {
+      final GenesisConfigOptions genesisConfigOptions = readGenesisConfigOptions();
+      if (chainDataPruningBlocksRetained
+          < unstableChainPruningOptions.getChainDataPruningBlocksRetainedLimit()) {
+        throw new ParameterException(
+            this.commandLine,
+            "--Xchain-pruning-blocks-retained must be >= "
+                + unstableChainPruningOptions.getChainDataPruningBlocksRetainedLimit());
+      } else if (genesisConfigOptions.isPoa()) {
+        Long epochLength = 0L;
+        String consensusMechanism = "";
+        if (genesisConfigOptions.isIbft2()) {
+          epochLength = genesisConfigOptions.getBftConfigOptions().getEpochLength();
+          consensusMechanism = "IBFT2";
+        } else if (genesisConfigOptions.isQbft()) {
+          epochLength = genesisConfigOptions.getQbftConfigOptions().getEpochLength();
+          consensusMechanism = "QBFT";
+        } else if (genesisConfigOptions.isClique()) {
+          epochLength = genesisConfigOptions.getCliqueConfigOptions().getEpochLength();
+          consensusMechanism = "Clique";
+        }
+        if (chainDataPruningBlocksRetained < epochLength) {
+          throw new ParameterException(
+              this.commandLine,
+              String.format(
+                  "--Xchain-pruning-blocks-retained(%d) must be >= epochlength(%d) for %s",
+                  chainDataPruningBlocksRetained, epochLength, consensusMechanism));
+        }
+      }
     }
   }
 
@@ -1794,10 +1826,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
             .clock(Clock.systemUTC())
             .isRevertReasonEnabled(isRevertReasonEnabled)
             .storageProvider(storageProvider)
-            .gasLimitCalculator(
-                miningParametersSupplier.get().getTargetGasLimit().isPresent()
-                    ? new FrontierTargetingGasLimitCalculator()
-                    : GasLimitCalculator.constant())
+            .isEarlyRoundChangeEnabled(unstableQbftOptions.isEarlyRoundChangeEnabled())
             .requiredBlocks(requiredBlocks)
             .reorgLoggingThreshold(reorgLoggingThreshold)
             .evmConfiguration(unstableEvmOptions.toDomainObject())
@@ -1805,7 +1834,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
             .maxRemotelyInitiatedPeers(maxRemoteInitiatedPeers)
             .randomPeerPriority(p2PDiscoveryOptions.randomPeerPriority)
             .chainPruningConfiguration(unstableChainPruningOptions.toDomainObject())
-            .cacheLastBlocks(numberOfblocksToCache)
+            .cacheLastBlocks(numberOfBlocksToCache)
             .genesisStateHashCacheEnabled(genesisStateHashCacheEnabled)
             .apiConfiguration(apiConfigurationSupplier.get())
             .besuComponent(besuComponent);
@@ -2128,13 +2157,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     getGenesisBlockPeriodSeconds(genesisConfigOptionsSupplier.get())
         .ifPresent(miningParameters::setBlockPeriodSeconds);
     initMiningParametersMetrics(miningParameters);
-    // if network = holesky, set targetGasLimit to 36,000,000 unless otherwise specified
-    if (miningParameters.getTargetGasLimit().isEmpty() && NetworkName.HOLESKY.equals(network)) {
-      logger.info(
-          "Setting target gas limit for holesky: {}",
-          MiningConfiguration.DEFAULT_TARGET_GAS_LIMIT_HOLESKY);
-      miningParameters.setTargetGasLimit(MiningConfiguration.DEFAULT_TARGET_GAS_LIMIT_HOLESKY);
-    }
+
     return miningParameters;
   }
 
@@ -2236,7 +2259,6 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
             .besuController(controller)
             .p2pEnabled(p2pEnabled)
             .natMethod(natMethod)
-            .natManagerServiceName(unstableNatOptions.getNatManagerServiceName())
             .natMethodFallbackEnabled(unstableNatOptions.getNatMethodFallbackEnabled())
             .discoveryEnabled(peerDiscoveryEnabled)
             .ethNetworkConfig(ethNetworkConfig)
@@ -2756,7 +2778,6 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     }
 
     builder.setSnapServerEnabled(this.unstableSynchronizerOptions.isSnapsyncServerEnabled());
-    builder.setSnapSyncBftEnabled(this.unstableSynchronizerOptions.isSnapSyncBftEnabled());
 
     builder.setTxPoolImplementation(buildTransactionPoolConfiguration().getTxPoolImplementation());
     builder.setWorldStateUpdateMode(unstableEvmOptions.toDomainObject().worldUpdaterMode());
