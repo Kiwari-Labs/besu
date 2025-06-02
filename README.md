@@ -8,7 +8,7 @@
 
 [Download](https://github.com/hyperledger/besu/releases)
 
-`corp-ais/blockchain-besu` is a forked of `hypelerledger/besu`.  
+`corp-ais/blockchain-besu` is a forked of `hyperledger/besu`.  
 Besu is an Apache 2.0 licensed, MainNet compatible, Ethereum client written in Java.
 
 ## Additional Feature differ form original Besu
