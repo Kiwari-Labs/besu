@@ -31,6 +31,7 @@ import static org.hyperledger.besu.cli.config.NetworkName.MORDOR;
 import static org.hyperledger.besu.cli.config.NetworkName.SEPOLIA;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.RpcApis.ENGINE;
 import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.HOODI_BOOTSTRAP_NODES;
+import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.HOODI_DISCOVERY_URL;
 import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.MAINNET_BOOTSTRAP_NODES;
 import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.MAINNET_DISCOVERY_URL;
 import static org.hyperledger.besu.ethereum.p2p.config.DefaultDiscoveryConfiguration.SEPOLIA_BOOTSTRAP_NODES;
@@ -50,7 +51,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import org.hyperledger.besu.BesuInfo;
 import org.hyperledger.besu.cli.config.EthNetworkConfig;
 import org.hyperledger.besu.cli.config.NativeRequirement.NativeRequirementResult;
 import org.hyperledger.besu.cli.config.NetworkName;
@@ -76,6 +76,7 @@ import org.hyperledger.besu.metrics.StandardMetricCategory;
 import org.hyperledger.besu.metrics.prometheus.MetricsConfiguration;
 import org.hyperledger.besu.plugin.data.EnodeURL;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
+import org.hyperledger.besu.util.BesuVersionUtils;
 import org.hyperledger.besu.util.number.Fraction;
 import org.hyperledger.besu.util.number.Percentage;
 import org.hyperledger.besu.util.number.PositiveNumber;
@@ -250,7 +251,8 @@ public class BesuCommandTest extends CommandTestAbstract {
   @Test
   public void callingVersionDisplayBesuInfoVersion() {
     parseCommand("--version");
-    assertThat(commandOutput.toString(UTF_8)).isEqualToIgnoringWhitespace(BesuInfo.version());
+    assertThat(commandOutput.toString(UTF_8))
+        .isEqualToIgnoringWhitespace(BesuVersionUtils.version());
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
   }
 
@@ -299,7 +301,8 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
     assertThat(miningArg.getValue().getCoinbase()).isEqualTo(Optional.empty());
     assertThat(miningArg.getValue().getMinTransactionGasPrice()).isEqualTo(Wei.of(1000));
-    assertThat(miningArg.getValue().getExtraData()).isEqualTo(Bytes.EMPTY);
+    assertThat(miningArg.getValue().getExtraData())
+        .isEqualTo(BesuVersionUtils.versionForExtraData());
     assertThat(ethNetworkArg.getValue().networkId()).isEqualTo(1);
     assertThat(ethNetworkArg.getValue().bootNodes()).isEqualTo(MAINNET_BOOTSTRAP_NODES);
   }
@@ -547,7 +550,7 @@ public class BesuCommandTest extends CommandTestAbstract {
 
     final EthNetworkConfig config = networkArg.getValue();
     assertThat(config.bootNodes()).isEqualTo(HOODI_BOOTSTRAP_NODES);
-    assertThat(config.dnsDiscoveryUrl()).isNull();
+    assertThat(config.dnsDiscoveryUrl()).isEqualTo(HOODI_DISCOVERY_URL);
     assertThat(config.networkId()).isEqualTo(BigInteger.valueOf(560048));
   }
 
@@ -1306,7 +1309,7 @@ public class BesuCommandTest extends CommandTestAbstract {
   }
 
   @Test
-  public void diffbasedLimitTrieLogsEnabledByDefault() {
+  public void pathbasedLimitTrieLogsEnabledByDefault() {
     parseCommand();
     verify(mockControllerBuilder)
         .dataStorageConfiguration(dataStorageConfigurationArgumentCaptor.capture());
@@ -1316,7 +1319,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(dataStorageConfiguration.getDataStorageFormat()).isEqualTo(BONSAI);
     assertThat(
             dataStorageConfiguration
-                .getDiffBasedSubStorageConfiguration()
+                .getPathBasedExtraStorageConfiguration()
                 .getLimitTrieLogsEnabled())
         .isTrue();
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
@@ -1335,7 +1338,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(dataStorageConfiguration.getDataStorageFormat()).isEqualTo(BONSAI);
     assertThat(
             dataStorageConfiguration
-                .getDiffBasedSubStorageConfiguration()
+                .getPathBasedExtraStorageConfiguration()
                 .getLimitTrieLogsEnabled())
         .isFalse();
     verify(mockLogger)
@@ -1372,7 +1375,8 @@ public class BesuCommandTest extends CommandTestAbstract {
     final DataStorageConfiguration dataStorageConfiguration =
         dataStorageConfigurationArgumentCaptor.getValue();
     assertThat(dataStorageConfiguration.getDataStorageFormat()).isEqualTo(BONSAI);
-    assertThat(dataStorageConfiguration.getDiffBasedSubStorageConfiguration().getMaxLayersToLoad())
+    assertThat(
+            dataStorageConfiguration.getPathBasedExtraStorageConfiguration().getMaxLayersToLoad())
         .isEqualTo(11);
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
@@ -1876,7 +1880,8 @@ public class BesuCommandTest extends CommandTestAbstract {
 
     assertThat(miningArg.getValue().getCoinbase()).isEqualTo(Optional.empty());
     assertThat(miningArg.getValue().getMinTransactionGasPrice()).isEqualTo(Wei.of(1000));
-    assertThat(miningArg.getValue().getExtraData()).isEqualTo(Bytes.EMPTY);
+    assertThat(miningArg.getValue().getExtraData())
+        .isEqualTo(BesuVersionUtils.versionForExtraData());
     assertThat(miningArg.getValue().getTargetGasLimit()).isEmpty();
 
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
@@ -1902,7 +1907,8 @@ public class BesuCommandTest extends CommandTestAbstract {
 
     assertThat(miningArg.getValue().getCoinbase()).isEqualTo(Optional.empty());
     assertThat(miningArg.getValue().getMinTransactionGasPrice()).isEqualTo(Wei.of(1000));
-    assertThat(miningArg.getValue().getExtraData()).isEqualTo(Bytes.EMPTY);
+    assertThat(miningArg.getValue().getExtraData())
+        .isEqualTo(BesuVersionUtils.versionForExtraData());
     assertThat(miningArg.getValue().getTargetGasLimit().getAsLong()).isEqualTo(customGasLimit);
 
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
@@ -2259,49 +2265,6 @@ public class BesuCommandTest extends CommandTestAbstract {
   }
 
   @Test
-  public void compatibilityEth64ForkIdEnabledMustBeUsed() {
-    parseCommand("--compatibility-eth64-forkid-enabled");
-    verify(mockControllerBuilder)
-        .ethProtocolConfiguration(ethProtocolConfigurationArgumentCaptor.capture());
-    assertThat(ethProtocolConfigurationArgumentCaptor.getValue().isLegacyEth64ForkIdEnabled())
-        .isTrue();
-    assertThat(commandOutput.toString(UTF_8)).isEmpty();
-    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
-  }
-
-  @Test
-  public void compatibilityEth64ForkIdNotEnabledMustBeUsed() {
-    parseCommand("--compatibility-eth64-forkid-enabled=false");
-    verify(mockControllerBuilder)
-        .ethProtocolConfiguration(ethProtocolConfigurationArgumentCaptor.capture());
-    assertThat(ethProtocolConfigurationArgumentCaptor.getValue().isLegacyEth64ForkIdEnabled())
-        .isFalse();
-    assertThat(commandOutput.toString(UTF_8)).isEmpty();
-    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
-  }
-
-  @Test
-  public void assertThatCompatibilityEth64ForkIdIsNotEnabledByDefault() {
-    parseCommand();
-    verify(mockControllerBuilder)
-        .ethProtocolConfiguration(ethProtocolConfigurationArgumentCaptor.capture());
-    assertThat(ethProtocolConfigurationArgumentCaptor.getValue().isLegacyEth64ForkIdEnabled())
-        .isFalse();
-    assertThat(commandOutput.toString(UTF_8)).isEmpty();
-    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
-  }
-
-  @Test
-  public void assertThatCompatibilityEth64ForkIdIsPresentInHelpMessage() {
-    parseCommand("--help");
-    assertThat(commandOutput.toString(UTF_8))
-        .contains(
-            "--compatibility-eth64-forkid-enabled",
-            "Enable the legacy Eth/64 fork id. (default: false)");
-    assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
-  }
-
-  @Test
   public void assertThatCheckPortClashRejectsAsExpectedForEngineApi() throws Exception {
     // use WS port for HTTP
     final int port = 8545;
@@ -2438,6 +2401,13 @@ public class BesuCommandTest extends CommandTestAbstract {
   public void logWarnIfFastSyncMinPeersUsedWithFullSync() {
     parseCommand("--sync-mode", "FULL", "--fast-sync-min-peers", "1");
     verify(mockLogger).warn("--sync-min-peers is ignored in FULL sync-mode");
+  }
+
+  @Test
+  public void verifyVersionInTheConfigurationOverviewIsCorrect() {
+    parseCommand();
+    verify(mockLogger)
+        .info(argThat(arg -> arg.contains("# Besu version " + BesuVersionUtils.shortVersion())));
   }
 
   @Test
@@ -2616,7 +2586,7 @@ public class BesuCommandTest extends CommandTestAbstract {
             besuCommand
                 .getDataStorageOptions()
                 .toDomainObject()
-                .getDiffBasedSubStorageConfiguration()
+                .getPathBasedExtraStorageConfiguration()
                 .getUnstable()
                 .getFullFlatDbEnabled())
         .isTrue();
@@ -2629,7 +2599,7 @@ public class BesuCommandTest extends CommandTestAbstract {
             besuCommand
                 .dataStorageOptions
                 .toDomainObject()
-                .getDiffBasedSubStorageConfiguration()
+                .getPathBasedExtraStorageConfiguration()
                 .getUnstable()
                 .getFullFlatDbEnabled())
         .isFalse();

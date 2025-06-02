@@ -15,7 +15,6 @@
 package org.hyperledger.besu.ethereum.blockcreation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hyperledger.besu.ethereum.mainnet.requests.RequestContractAddresses.DEFAULT_DEPOSIT_CONTRACT_ADDRESS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -117,6 +116,9 @@ abstract class AbstractBlockCreatorTest {
 
   @Mock private WithdrawalsProcessor withdrawalsProcessor;
   protected EthScheduler ethScheduler = new DeterministicEthScheduler();
+
+  public static final Address DEFAULT_DEPOSIT_CONTRACT_ADDRESS =
+      Address.fromHexString("0x00000000219ab540356cbb839cbe05303d7705fa");
 
   @Test
   void findDepositRequestsFromReceipts() {
@@ -359,7 +361,7 @@ abstract class AbstractBlockCreatorTest {
     return new CreateOn(
         new TestBlockCreator(
             miningConfiguration,
-            __ -> Address.ZERO,
+            (__, ___) -> Address.ZERO,
             __ -> Bytes.fromHexString("deadbeef"),
             transactionPool,
             executionContextTestFixture.getProtocolContext(),
