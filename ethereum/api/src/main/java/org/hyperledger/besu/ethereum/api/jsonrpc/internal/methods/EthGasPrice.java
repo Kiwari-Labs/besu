@@ -29,6 +29,7 @@ import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.mainnet.ImmutableTransactionValidationParams;
 import org.hyperledger.besu.ethereum.mainnet.TransactionValidationParams;
 import org.hyperledger.besu.ethereum.transaction.CallParameter;
+import org.hyperledger.besu.ethereum.transaction.ImmutableCallParameter;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulatorResult;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
@@ -112,7 +113,7 @@ public class EthGasPrice implements JsonRpcMethod {
 
   private Bytes callRemoteGasPrice(final Bytes function) {
     final CallParameter callParameter =
-        new CallParameter(null, Address.GASPRICE, -1, null, null, function);
+        ImmutableCallParameter.builder().to(Address.GASPRICE).input(function).build();
     final Optional<TransactionSimulatorResult> result =
         transactionSimulator.process(
             callParameter,

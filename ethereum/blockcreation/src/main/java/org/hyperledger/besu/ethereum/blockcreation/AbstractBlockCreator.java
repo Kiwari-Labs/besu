@@ -339,7 +339,7 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
       final ProtocolSpec newProtocolSpec,
       final BlockHeader parentHeader) {
 
-    if (newProtocolSpec.getFeeMarket().implementsDataFee()) {
+    if (newProtocolSpec.getFeeMarket().implementsBlobFee()) {
       final var gasCalculator = newProtocolSpec.getGasCalculator();
       final int newBlobsCount =
           transactionResults.getTransactionsByType(TransactionType.BLOB).stream()
@@ -388,10 +388,7 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
             isCancelled::get,
             miningBeneficiary,
             blobGasPrice,
-            protocolSpec.getFeeMarket(),
-            protocolSpec.getGasCalculator(),
-            protocolSpec.getGasLimitCalculator(),
-            protocolSpec.getBlockHashProcessor(),
+            protocolSpec,
             pluginTransactionSelector,
             ethScheduler,
             selectorsStateManager);
