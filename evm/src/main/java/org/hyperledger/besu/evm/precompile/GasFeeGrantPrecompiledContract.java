@@ -187,7 +187,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
     final UInt256 allowance = contract.getStorageValue(rootSlot.add(1L));
     final UInt256 spendLimit = contract.getStorageValue(rootSlot.add(2L));
     final UInt256 periodLimit = contract.getStorageValue(rootSlot.add(3L));
-    final UInt256 periodCanSpend = UInt256.fromBytes(periodCanSpend(contract, calldata.slice(32), blockNumber));
+    final UInt256 periodCanSpend = UInt256.fromBytes(periodCanSpend(contract, calldata, blockNumber));
     final UInt256 startTime = contract.getStorageValue(rootSlot.add(5L));
     final UInt256 endTime = contract.getStorageValue(rootSlot.add(6L));
     final UInt256 latestTransaction = contract.getStorageValue(rootSlot.add(7L));
