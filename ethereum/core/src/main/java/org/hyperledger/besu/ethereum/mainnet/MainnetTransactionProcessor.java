@@ -285,11 +285,11 @@ public class MainnetTransactionProcessor {
               isPeriodic = true;
             }
           }
-          granter = evmWorldUpdater.getOrCreateSenderAccount(granterAddress);
+          granter = worldState.getOrCreateSenderAccount(granterAddress);
         }
       }
 
-      operationTracer.tracePrepareTransaction(evmWorldUpdater, transaction);
+      operationTracer.tracePrepareTransaction(worldState, transaction);
 
       final Set<Address> warmAddressList = new BytesTrieSet<>(Address.SIZE);
 
@@ -553,14 +553,14 @@ public class MainnetTransactionProcessor {
       final Bytes revenueRatioStatus = getStorageAtFromRevenueRatio(worldUpdater, 2L);
 
       if (!coinbaseWeiDelta.isZero() || !clearEmptyAccounts) {
-        final var coinbase = evmWorldUpdater.getOrCreate(miningBeneficiary);
+        final var coinbase = worldState.getOrCreate(miningBeneficiary);
         if (revenueRatioStatus.equals(FALSE)) {
           coinbase.incrementBalance(coinbaseWeiDelta);
         } else {
           final Address providerAddress = getProviderOf(worldUpdater, senderAddress);
-          final var contract = evmWorldUpdater.getOrCreate(transaction.getTo().get());
-          final var provider = evmWorldUpdater.getOrCreate(providerAddress);
-          final var treasury = evmWorldUpdater.getOrCreate(getTreasuryAddress(worldUpdater));
+          final var contract = worldState.getOrCreate(transaction.getTo().get());
+          final var provider = worldState.getOrCreate(providerAddress);
+          final var treasury = worldState.getOrCreate(getTreasuryAddress(worldUpdater));
           if (initialFrame.getCode().isValid() && !transaction.isContractCreation()) {
             final Wei feeForContract =
                 coinbaseWeiDelta
