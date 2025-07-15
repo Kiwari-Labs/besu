@@ -208,7 +208,6 @@ public class MainnetTransactionProcessor {
 
       final Address senderAddress = transaction.getSender();
       final MutableAccount sender = worldState.getOrCreateSenderAccount(senderAddress);
-      final WorldUpdater evmWorldUpdater = worldState.updater();
 
       validationResult =
           transactionValidator.validateForSender(transaction, sender, transactionValidationParams);
@@ -221,20 +220,17 @@ public class MainnetTransactionProcessor {
       Wei periodLimit = Wei.ZERO;
       Wei periodCanSpend = Wei.ZERO;
       UInt256 periodReset = UInt256.ZERO;
-      ;
       UInt256 latestTransaction = UInt256.ZERO;
-      ;
       UInt256 rootStorageSlot = UInt256.ZERO;
-      ;
       UInt256 period = UInt256.ZERO;
       Address granterAddress = Address.ZERO;
-      MutableAccount granter = evmWorldUpdater.getOrCreate(Address.ZERO);
+      MutableAccount granter = worldState.getOrCreate(Address.ZERO);
       boolean isPeriodic = false;
 
       final boolean isGranted =
           !sender.getStorageValue(FEE_GRANT_FLAG_STORAGE).isZero()
               && (sender.getBalance()).isZero();
-      final MutableAccount feeGrant = evmWorldUpdater.getOrCreate(Address.GASFEE_GRANT);
+      final MutableAccount feeGrant = worldState.getOrCreate(Address.GASFEE_GRANT);
       // Check is the transaction send from granted account.
       if (isGranted) {
         final UInt256 rootSlotForAll = getRootSlotOfGasFeeGrant(senderAddress, Address.ZERO);
@@ -558,10 +554,10 @@ public class MainnetTransactionProcessor {
           coinbase.incrementBalance(coinbaseWeiDelta);
         } else {
           final Address providerAddress = getProviderOf(worldUpdater, senderAddress);
-          final var contract = worldState.getOrCreate(transaction.getTo().get());
           final var provider = worldState.getOrCreate(providerAddress);
           final var treasury = worldState.getOrCreate(getTreasuryAddress(worldUpdater));
           if (initialFrame.getCode().isValid() && !transaction.isContractCreation()) {
+            final var contract = worldState.getOrCreate(transaction.getTo().get());
             final Wei feeForContract =
                 coinbaseWeiDelta
                     .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 3L)))
