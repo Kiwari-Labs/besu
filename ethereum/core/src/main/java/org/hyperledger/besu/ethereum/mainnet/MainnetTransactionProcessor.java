@@ -207,7 +207,7 @@ public class MainnetTransactionProcessor {
       }
 
       final Address senderAddress = transaction.getSender();
-      final MutableAccount sender = worldState.getOrCreateSenderAccount(senderAddress);
+      final MutableAccount sender = worldState.getOrCreate(senderAddress);
 
       validationResult =
           transactionValidator.validateForSender(transaction, sender, transactionValidationParams);
@@ -235,8 +235,10 @@ public class MainnetTransactionProcessor {
       if (isGranted) {
         final UInt256 rootSlotForAll = getRootSlotOfGasFeeGrant(senderAddress, Address.ZERO);
 
-        @SuppressWarnings("OptionalGetWithoutIsPresent")
-        final Address to = transaction.getTo().get();
+        Address to =  Address.ZERO;
+        if (transaction.getTo().isPresent()) {
+          to = transaction.getTo().get();
+        }
         final UInt256 rootSlotForProgram = getRootSlotOfGasFeeGrant(senderAddress, to);
 
         final UInt256 allowanceForAll = feeGrant.getStorageValue(rootSlotForAll.add(1L));
@@ -281,7 +283,7 @@ public class MainnetTransactionProcessor {
               isPeriodic = true;
             }
           }
-          granter = worldState.getOrCreateSenderAccount(granterAddress);
+          granter = worldState.getOrCreate(granterAddress);
         }
       }
 
