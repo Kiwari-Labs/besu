@@ -155,7 +155,13 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
-      final UInt256 slot = storageSlot(Address.wrap(calldata.slice(12, 20)));
+      final Address toAddAddress = Address.wrap(calldata.slice(12, 20);
+      final Address initiatorAddress = Address.extract(calldata.slice(32));
+      // preventing add zero address to register
+      if (toAddAddress.equals(Address.ZERO) || initiatorAddress.equals(Address.ZERO)) {
+        return FALSE;
+      }
+      final UInt256 slot = storageSlot(toAddAddress);
       contract.setStorageValue(slot, UInt256.fromBytes(calldata.slice(32)));
       return TRUE;
     }
@@ -167,6 +173,9 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
       return FALSE;
     } else {
       final UInt256 slot = storageSlot(Address.wrap(calldata.slice(12, 20)));
+      if (contract.getStorageValue(slot).isZero()) {
+        return FALSE;
+      }
       contract.setStorageValue(slot, UInt256.ZERO);
       return TRUE;
     }
