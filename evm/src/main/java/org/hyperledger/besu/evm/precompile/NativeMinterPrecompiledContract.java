@@ -126,7 +126,7 @@ public class NativeMinterPrecompiledContract extends AbstractPrecompiledContract
     } else {
       final Address recipientAddress = Address.wrap(calldata.slice(12, 20));
       final UInt256 value = UInt256.fromBytes(calldata.slice(32));
-      if (value.isZero()) {
+      if (value.isZero() || recipientAddress.equals(Address.ZERO)) {
         return FALSE;
       }
       final MutableAccount recipientAccount = worldUpdater.getOrCreate(recipientAddress);

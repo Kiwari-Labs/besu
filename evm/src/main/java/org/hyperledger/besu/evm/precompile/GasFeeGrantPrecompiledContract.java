@@ -223,6 +223,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
         final UInt256 endTime = UInt256.fromBytes(calldata.slice(160, 32));
         final UInt256 period = UInt256.fromBytes(calldata.slice(192));
         UInt256 allowance = UInt256.ONE;
+        if (granterAddress.equals(Address.ZERO)){
+          return FALSE;
+        }
         if (spendLimit.isZero()
             || granterAddress.equals(Address.ZERO)
             || granteeAddress.equals(Address.ZERO)) {
@@ -271,6 +274,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       return FALSE;
     } else {
       final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
+      if (granteeAddress.equals(Address.ZERO)) {
+        return FALSE;
+      }
       final Address programAddress = Address.wrap(calldata.slice(44, 20));
       final UInt256 rootSlot = storageSlotGrant(granteeAddress, programAddress);
       contract.setStorageValue(rootSlot, UInt256.ZERO);
@@ -298,6 +304,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
   private Bytes periodCanSpend(
       final MutableAccount contract, final Bytes calldata, final UInt256 blockNumber) {
     final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
+    if (granteeAddress.equals(Address.ZERO)){
+      return FALSE;
+    }
     Address programAddress = Address.wrap(calldata.slice(44, 20));
     UInt256 rootSlot = storageSlotGrant(granteeAddress, Address.ZERO);
     if (contract.getStorageValue(rootSlot.add(1L)).equals(UInt256.valueOf(2L))) {
@@ -321,6 +330,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
   private Bytes periodReset(
       final MutableAccount contract, final Bytes calldata, final UInt256 blockNumber) {
     final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
+    if (granteeAddress.equals(Address.ZERO)) {
+      return FALSE;
+    }
     Address programAddress = Address.wrap(calldata.slice(44, 20));
     UInt256 rootSlot = storageSlotGrant(granteeAddress, Address.ZERO);
     if (contract.getStorageValue(rootSlot.add(1L)).equals(UInt256.valueOf(2L))) {
@@ -342,6 +354,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
   private Bytes isExpired(
       final MutableAccount contract, final Bytes calldata, final UInt256 blockNumber) {
     final Address granteeAddress = Address.wrap(calldata.slice(12, 20));
+    if (granteeAddress.equals(Address.ZERO)) {
+      return FALSE;
+    }
     final Address programAddress = Address.wrap(calldata.slice(44, 20));
     final UInt256 endTime =
         contract.getStorageValue(storageSlotGrant(granteeAddress, programAddress).add(6L));
