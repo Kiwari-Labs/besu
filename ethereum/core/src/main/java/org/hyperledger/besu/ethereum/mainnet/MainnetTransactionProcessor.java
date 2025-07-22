@@ -558,7 +558,7 @@ public class MainnetTransactionProcessor {
           final Address providerAddress = getProviderOf(worldUpdater, senderAddress);
           final var provider = worldState.getOrCreate(providerAddress);
           final var treasury = worldState.getOrCreate(getTreasuryAddress(worldUpdater));
-          if (initialFrame.getCode().isValid() && !transaction.isContractCreation()) {
+          if (!initialFrame.getInputData().isEmpty() && !transaction.isContractCreation()) {
             final var contract = worldState.getOrCreate(transaction.getTo().get());
             final Wei feeForContract =
                 coinbaseWeiDelta
@@ -579,14 +579,38 @@ public class MainnetTransactionProcessor {
                     .subtract(providerAddress.equals(Address.ZERO) ? Wei.ZERO : feeForProvider);
             contract.incrementBalance(feeForContract);
             treasury.incrementBalance(feeForTreasury);
+            coinbase.incrementBalance(feeForCoinbase);
+            LOG.debug(
+              "Transaction fee distribute to contract at {}: {} wei",
+              contract,
+              feeForContract);
+            LOG.debug(
+              "Transaction fee distribute to treasury at {}: {} wei",
+              treasury,
+              feeForTreasury);
+            LOG.debug(
+              "Transaction fee distribute to coinbase {}: {} wei",
+              coinbase,
+              feeForCoinbase);
             if (!providerAddress.equals(Address.ZERO)) {
               provider.incrementBalance(feeForProvider);
+              LOG.debug(
+              "Transaction fee distribute to provider at{}: {} wei",
+              provider,
+              feeForProvider);
             }
-            coinbase.incrementBalance(feeForCoinbase);
           } else {
             final Wei fee = coinbaseWeiDelta.divide(2L);
             coinbase.incrementBalance(fee);
             treasury.incrementBalance(fee);
+            LOG.debug(
+              "Transaction fee distribute to coinbase {}: {} wei",
+              coinbase,
+              fee);
+            LOG.debug(
+              "Transaction fee distribute to treasury {}: {} wei",
+              treasury,
+              fee);
           }
         }
       }

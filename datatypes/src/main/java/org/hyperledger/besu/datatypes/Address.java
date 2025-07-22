@@ -113,6 +113,7 @@ public class Address extends DelegatingBytes {
   /** The constant GASFEE_GRANT */
   public static final Address GASFEE_GRANT =
       Address.fromHexString("0x0000000000000000000000000000000000001006");
+
   /** Precompile address for P256_VERIFY. */
   public static final Address P256_VERIFY = Address.precompiled(0x0100);
 
