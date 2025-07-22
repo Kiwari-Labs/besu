@@ -155,14 +155,14 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
     if (onlyOwner(contract, senderAddress).isZero()) {
       return FALSE;
     } else {
-      final Address toAddAddress = Address.wrap(calldata.slice(12, 20);
-      final UInt256 eligibleInitiatorAddress = UInt256.fromBytes(calldata.slice(32));
+      final Address toAddAddress = Address.wrap(calldata.slice(12, 20));
+      final Address initiatorAddress = Address.wrap(calldata.slice(44, 20));
       // preventing add zero address to register
-      if (toAddAddress.equals(Address.ZERO) || eligibleInitiatorAddress.isZero()) {
+      if (toAddAddress.equals(Address.ZERO) || initiatorAddress.equals(Address.ZERO)) {
         return FALSE;
       }
       final UInt256 slot = storageSlot(toAddAddress);
-      contract.setStorageValue(slot, eligibleInitiatorAddress);
+      contract.setStorageValue(slot, UInt256.fromBytes(calldata.slice(32)));
       return TRUE;
     }
   }

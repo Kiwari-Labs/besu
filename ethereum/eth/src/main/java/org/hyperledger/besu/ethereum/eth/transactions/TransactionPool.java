@@ -321,7 +321,9 @@ public class TransactionPool implements BlockAddedObserver {
   private Wei getRemoteGasPrice() {
     final Optional<BlockHeader> blockHeader = getChainHeadBlockHeader();
     final Optional<MutableWorldState> worldState =
-        protocolContext.getWorldStateArchive().getWorldState(withBlockHeaderAndNoUpdateNodeHead(blockHeader.get()));
+        protocolContext
+            .getWorldStateArchive()
+            .getWorldState(withBlockHeaderAndNoUpdateNodeHead(blockHeader.get()));
     final WorldUpdater worldUpdater = worldState.get().updater();
     final MutableAccount gasPricePrecompiled = worldUpdater.getOrCreate(Address.GASPRICE);
     final UInt256 status = gasPricePrecompiled.getStorageValue(UInt256.valueOf(2L));
