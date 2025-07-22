@@ -559,7 +559,8 @@ public class MainnetTransactionProcessor {
           final var provider = worldState.getOrCreate(providerAddress);
           final var treasury = worldState.getOrCreate(getTreasuryAddress(worldUpdater));
           if (!initialFrame.getInputData().isEmpty() && !transaction.isContractCreation()) {
-            final var contract = worldState.getOrCreate(transaction.getTo().get());
+            final Address contractProviderAddress = getProviderOf(worldUpdater, transaction.getTo().get());
+            final var contract = worldState.getOrCreate(contractProviderAddress);
             final Wei feeForContract =
                 coinbaseWeiDelta
                     .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 3L)))
