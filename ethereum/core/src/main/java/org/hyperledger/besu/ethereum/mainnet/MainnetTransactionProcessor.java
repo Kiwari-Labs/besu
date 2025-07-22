@@ -235,7 +235,7 @@ public class MainnetTransactionProcessor {
       if (isGranted) {
         final UInt256 rootSlotForAll = getRootSlotOfGasFeeGrant(senderAddress, Address.ZERO);
 
-        Address to =  Address.ZERO;
+        Address to = Address.ZERO;
         if (transaction.getTo().isPresent()) {
           to = transaction.getTo().get();
         }
@@ -559,13 +559,14 @@ public class MainnetTransactionProcessor {
           final var provider = worldState.getOrCreate(providerAddress);
           final var treasury = worldState.getOrCreate(getTreasuryAddress(worldUpdater));
           if (!initialFrame.getInputData().isEmpty() && !transaction.isContractCreation()) {
-            final Address contractProviderAddress = getProviderOf(worldUpdater, transaction.getTo().get());
-            final var contract = worldState.getOrCreate(contractProviderAddress);
-            final Wei feeForContract =
+            final Address contractProviderAddress =
+                getProviderOf(worldUpdater, transaction.getTo().get());
+            final var contractProvider = worldState.getOrCreate(contractProviderAddress);
+            Wei feeForContract =
                 coinbaseWeiDelta
                     .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 3L)))
                     .divide(100L);
-            final Wei feeForProvider =
+            Wei feeForProvider =
                 coinbaseWeiDelta
                     .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 4L)))
                     .divide(100L);
@@ -573,45 +574,42 @@ public class MainnetTransactionProcessor {
                 coinbaseWeiDelta
                     .multiply(Wei.wrap(getStorageAtFromRevenueRatio(worldUpdater, 5L)))
                     .divide(100L);
+            if (contractProviderAddress.equals(Address.ZERO)) {
+              feeForContract = Wei.ZERO;
+            }
+            if (providerAddress.equals(Address.ZERO)) {
+              feeForProvider = Wei.ZERO;
+            }
+            if (!feeForContract.isZero()) {
+              contractProvider.incrementBalance(feeForContract);
+              LOG.debug(
+                  "Transaction fee distribute to contract provider at {}: {} wei",
+                  contract,
+                  feeForContract);
+            }
+            if (!feeForProvider.isZero()) {
+              provider.incrementBalance(feeForProvider);
+              LOG.debug(
+                  "Transaction fee distribute to provider at {}: {} wei", provider, feeForProvider);
+            }
             final Wei feeForCoinbase =
                 coinbaseWeiDelta
                     .subtract(feeForContract)
                     .subtract(feeForTreasury)
-                    .subtract(providerAddress.equals(Address.ZERO) ? Wei.ZERO : feeForProvider);
-            contract.incrementBalance(feeForContract);
+                    .subtract(feeForProvider);
             treasury.incrementBalance(feeForTreasury);
+            ;
             coinbase.incrementBalance(feeForCoinbase);
             LOG.debug(
-              "Transaction fee distribute to contract at {}: {} wei",
-              contract,
-              feeForContract);
+                "Transaction fee distribute to treasury at {}: {} wei", treasury, feeForTreasury);
             LOG.debug(
-              "Transaction fee distribute to treasury at {}: {} wei",
-              treasury,
-              feeForTreasury);
-            LOG.debug(
-              "Transaction fee distribute to coinbase {}: {} wei",
-              coinbase,
-              feeForCoinbase);
-            if (!providerAddress.equals(Address.ZERO)) {
-              provider.incrementBalance(feeForProvider);
-              LOG.debug(
-              "Transaction fee distribute to provider at{}: {} wei",
-              provider,
-              feeForProvider);
-            }
+                "Transaction fee distribute to coinbase {}: {} wei", coinbase, feeForCoinbase);
           } else {
             final Wei fee = coinbaseWeiDelta.divide(2L);
             coinbase.incrementBalance(fee);
             treasury.incrementBalance(fee);
-            LOG.debug(
-              "Transaction fee distribute to coinbase {}: {} wei",
-              coinbase,
-              fee);
-            LOG.debug(
-              "Transaction fee distribute to treasury {}: {} wei",
-              treasury,
-              fee);
+            LOG.debug("Transaction fee distribute to coinbase {}: {} wei", coinbase, fee);
+            LOG.debug("Transaction fee distribute to treasury {}: {} wei", treasury, fee);
           }
         }
       }
