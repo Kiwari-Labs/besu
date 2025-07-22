@@ -584,13 +584,13 @@ public class MainnetTransactionProcessor {
               contractProvider.incrementBalance(feeForContract);
               LOG.debug(
                   "Transaction fee distribute to contract provider at {}: {} wei",
-                  contract,
+                  contractProviderAddress,
                   feeForContract);
             }
             if (!feeForProvider.isZero()) {
               provider.incrementBalance(feeForProvider);
               LOG.debug(
-                  "Transaction fee distribute to provider at {}: {} wei", provider, feeForProvider);
+                  "Transaction fee distribute to provider at {}: {} wei", providerAddress, feeForProvider);
             }
             final Wei feeForCoinbase =
                 coinbaseWeiDelta
@@ -598,18 +598,17 @@ public class MainnetTransactionProcessor {
                     .subtract(feeForTreasury)
                     .subtract(feeForProvider);
             treasury.incrementBalance(feeForTreasury);
-            ;
             coinbase.incrementBalance(feeForCoinbase);
             LOG.debug(
-                "Transaction fee distribute to treasury at {}: {} wei", treasury, feeForTreasury);
+                "Transaction fee distribute to treasury at {}: {} wei", treasury.getAddress(), feeForTreasury);
             LOG.debug(
-                "Transaction fee distribute to coinbase {}: {} wei", coinbase, feeForCoinbase);
+                "Transaction fee distribute to coinbase {}: {} wei", coinbase.getAddress(), feeForCoinbase);
           } else {
             final Wei fee = coinbaseWeiDelta.divide(2L);
             coinbase.incrementBalance(fee);
             treasury.incrementBalance(fee);
-            LOG.debug("Transaction fee distribute to coinbase {}: {} wei", coinbase, fee);
-            LOG.debug("Transaction fee distribute to treasury {}: {} wei", treasury, fee);
+            LOG.debug("Transaction fee distribute to coinbase {}: {} wei", coinbase.getAddress(), fee);
+            LOG.debug("Transaction fee distribute to treasury {}: {} wei", treasury.getAddress(), fee);
           }
         }
       }
