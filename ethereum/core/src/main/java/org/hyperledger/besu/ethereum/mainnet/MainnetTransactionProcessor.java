@@ -265,7 +265,7 @@ public class MainnetTransactionProcessor {
             granterAddress = Address.wrap(feeGrant.getStorageValue(rootStorageSlot).slice(12, 20));
             spendLimit = Wei.of((feeGrant.getStorageValue(rootStorageSlot.add(2L))));
             // Check is allowance type is periodic.
-            if (rootStorageSlot.equals(UInt256.valueOf(2L))) {
+            if (feeGrant.getStorageValue((rootStorageSlot.add(1L))).equals(UInt256.valueOf(2L))) {
               // Get period can spend value.
               periodReset = feeGrant.getStorageValue(rootStorageSlot.add(5L));
               latestTransaction = feeGrant.getStorageValue(rootStorageSlot.add(7L));

@@ -220,8 +220,8 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
         final Address programAddress = Address.wrap(calldata.slice(76, 20));
         final UInt256 rootSlot = storageSlotGrant(granteeAddress, programAddress);
         final UInt256 spendLimit = UInt256.fromBytes(calldata.slice(96, 32));
-        final UInt256 periodLimit = UInt256.fromBytes(calldata.slice(128, 32));
-        final UInt256 period = UInt256.fromBytes(calldata.slice(160, 32));
+        final UInt256 period = UInt256.fromBytes(calldata.slice(128, 32));
+        final UInt256 periodLimit = UInt256.fromBytes(calldata.slice(160, 32));
         final UInt256 endTime = UInt256.fromBytes(calldata.slice(192));
         UInt256 allowance = UInt256.ONE;
         if (granterAddress.equals(Address.ZERO)) {
@@ -231,12 +231,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
             || granterAddress.equals(Address.ZERO)
             || granteeAddress.equals(Address.ZERO)) {
           return FALSE;
-        } else if (!period.isZero() && !periodLimit.isZero()) {
+        }
+        if (!period.isZero() && !periodLimit.isZero()) {
           if (spendLimit.compareTo(periodLimit) > 0) {
-            return FALSE;
-          }
-          UInt256 firstPeriodReset = blockNumber.add(period);
-          if (!endTime.isZero() && (endTime.compareTo(firstPeriodReset) > 0)) {
             return FALSE;
           }
           allowance = UInt256.valueOf(2L);
