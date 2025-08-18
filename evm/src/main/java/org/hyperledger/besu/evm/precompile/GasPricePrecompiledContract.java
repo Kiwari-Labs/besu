@@ -191,6 +191,7 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
+      final boolean isStaticCall = messageFrame.isStatic();
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
@@ -200,20 +201,20 @@ public class GasPricePrecompiledContract extends AbstractPrecompiledContract {
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
-      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
+      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)  && !isStaticCall) {
         return PrecompileContractResult.success(initializeOwner(precompile, calldata));
-      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
+      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)  && !isStaticCall) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(GASPRICE_SIGNATURE)) {
         return PrecompileContractResult.success(gasPrice(precompile));
       } else if (function.equals(STATUS_SIGNATURE)) {
         return PrecompileContractResult.success(status(precompile));
-      } else if (function.equals(ENABLE_SIGNATURE)) {
+      } else if (function.equals(ENABLE_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(enable(precompile, senderAddress));
-      } else if (function.equals(DISABLE_SIGNATURE)) {
+      } else if (function.equals(DISABLE_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(disable(precompile, senderAddress));
-      } else if (function.equals(SET_GASPRICE_SIGNATURE)) {
+      } else if (function.equals(SET_GASPRICE_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(setGasPrice(precompile, senderAddress, calldata));
       } else {
         LOG.debug("Failed function {} not found", function);

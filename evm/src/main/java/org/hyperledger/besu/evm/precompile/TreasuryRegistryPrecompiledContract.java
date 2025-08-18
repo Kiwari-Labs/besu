@@ -161,6 +161,7 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
+      final boolean isStaticCall = messageFrame.isStatic();
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
@@ -170,14 +171,14 @@ public class TreasuryRegistryPrecompiledContract extends AbstractPrecompiledCont
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
-      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
+      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(initializeOwner(precompile, calldata));
-      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
+      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(TREASURY_AT_SIGNATURE)) {
         return PrecompileContractResult.success(treasuryAt(precompile));
-      } else if (function.equals(SET_TREASURY_SIGNATURE)) {
+      } else if (function.equals(SET_TREASURY_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(setTreasury(precompile, senderAddress, calldata));
       } else {
         LOG.debug("Failed function {} not found", function);

@@ -382,6 +382,7 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
+      final boolean isStaticCall = messageFrame.isStatic();
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
@@ -392,9 +393,9 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
-      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
+      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(initializeOwner(precompile, calldata));
-      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
+      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(GRANT_SIGNATURE)) {
@@ -413,10 +414,10 @@ public class GasFeeGrantPrecompiledContract extends AbstractPrecompiledContract 
         return PrecompileContractResult.success(isGrantedForProgram(precompile, calldata));
       } else if (function.equals(IS_GRANT_FOR_ALL_PROGRAM_SIGNATURE)) {
         return PrecompileContractResult.success(isGrantedForAllProgram(precompile, calldata));
-      } else if (function.equals(SET_FEE_GRANT_SIGNATURE)) {
+      } else if (function.equals(SET_FEE_GRANT_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             setFeeGrant(precompile, senderAddress, worldUpdater, calldata, blockNumber));
-      } else if (function.equals(REVOKE_FEE_GRANT_SIGNATURE)) {
+      } else if (function.equals(REVOKE_FEE_GRANT_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             revokeFeeGrant(precompile, senderAddress, worldUpdater, calldata));
       } else {

@@ -234,6 +234,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
+      final boolean isStaticCall = messageFrame.isStatic();
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
@@ -245,14 +246,14 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
         return PrecompileContractResult.success(initialized(precompile));
       } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
         return PrecompileContractResult.success(initializeOwner(precompile, calldata));
-      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
+      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(STATUS_SIGNATURE)) {
         return PrecompileContractResult.success(status(precompile));
-      } else if (function.equals(ENABLE_SIGNATURE)) {
+      } else if (function.equals(ENABLE_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(enable(precompile, senderAddress));
-      } else if (function.equals(DISABLE_SIGNATURE)) {
+      } else if (function.equals(DISABLE_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(disable(precompile, senderAddress));
       } else if (function.equals(CONTRACT_RATIO_SIGNATURE)) {
         return PrecompileContractResult.success(contractRatio(precompile));
@@ -262,7 +263,7 @@ public class RevenueRatioPrecompiledContract extends AbstractPrecompiledContract
         return PrecompileContractResult.success(providerRatio(precompile));
       } else if (function.equals(TREASURY_RATIO_SIGNATURE)) {
         return PrecompileContractResult.success(treasuryRatio(precompile));
-      } else if (function.equals(SET_REVENUE_RATIO_SIGNATURE)) {
+      } else if (function.equals(SET_REVENUE_RATIO_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             setRevenueRatio(precompile, senderAddress, calldata));
       } else {

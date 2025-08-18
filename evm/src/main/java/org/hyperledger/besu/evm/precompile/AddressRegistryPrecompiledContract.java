@@ -204,6 +204,7 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     } else {
+      final boolean isStaticCall = messageFrame.isStatic();
       final Bytes function = input.slice(0, 4);
       final Bytes calldata = input.slice(4);
       final WorldUpdater worldUpdater = messageFrame.getWorldUpdater();
@@ -213,18 +214,18 @@ public class AddressRegistryPrecompiledContract extends AbstractPrecompiledContr
         return PrecompileContractResult.success(owner(precompile));
       } else if (function.equals(INITIALIZED_SIGNATURE)) {
         return PrecompileContractResult.success(initialized(precompile));
-      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE)) {
+      } else if (function.equals(INITIALIZE_OWNER_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(initializeOwner(precompile, calldata));
-      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE)) {
+      } else if (function.equals(TRANSFER_OWNERSHIP_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             transferOwnership(precompile, senderAddress, calldata));
       } else if (function.equals(CONTAINS_SIGNATURE)) {
         return PrecompileContractResult.success(contains(precompile, calldata));
       } else if (function.equals(DISCOVERY_SIGNATURE)) {
         return PrecompileContractResult.success(discovery(precompile, calldata));
-      } else if (function.equals(ADD_TO_REGISTRY_SIGNATURE)) {
+      } else if (function.equals(ADD_TO_REGISTRY_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(addToRegistry(precompile, senderAddress, calldata));
-      } else if (function.equals(REMOVE_FROM_REGISTRY_SIGNATURE)) {
+      } else if (function.equals(REMOVE_FROM_REGISTRY_SIGNATURE) && !isStaticCall) {
         return PrecompileContractResult.success(
             removeFromRegistry(precompile, senderAddress, calldata));
       } else {
